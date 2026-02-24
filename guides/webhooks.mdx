@@ -1,0 +1,136 @@
+---
+title: Webhooks
+description: Receive real-time notifications when events occur in Bitwage.
+---
+
+Bitwage sends webhook events as HTTP POST requests to your configured endpoint
+when specific events occur.
+
+## Setting up your webhook
+
+1. Go to the **Webhooks** tab in your Bitwage Business Account settings.
+2. [Create and manage webhooks](https://app.bitwage.com/business/settings-page/webhook).
+3. Configure your endpoint URL and note the **signing secret**.
+
+## Webhook events
+
+| Event | Description |
+|---|---|
+| `payroll.created` | A company created a payroll. |
+| `user.create_user` | A new user was created. |
+| `user.payment_status_update` | A user's payment status changed. |
+| `user.kyc_status_update` | A user's KYC verification status changed. |
+| `user.funding_account_status` | A user's funding account status changed. |
+
+## Webhook format
+
+All webhooks are sent as POST requests with a JSON body:
+
+```json
+{
+  "data": { ... },
+  "event": "event_name"
+}
+```
+
+### User KYC status update
+
+Sent when a user's KYC verification status changes.
+
+```json
+{
+  "event": "user.kyc_status_update",
+  "data": {
+    "user_id": "1234567890",
+    "kyc_verification_status": "approved"
+  }
+}
+```
+
+### User payment status update
+
+Sent when a user's payment status changes. Includes the full payment object
+with allocation outputs.
+
+```json
+{
+  "event": "user.payment_status_update",
+  "data": {
+    "user_id": "1234567890",
+    "status": "released",
+    "payment": {
+      "subpayroll_id": "9876543210",
+      "received": true,
+      "released": true,
+      "fulfilled": false,
+      "outputs": [
+        {
+          "input_currency": "USD",
+          "output_currency": "BTC",
+          "volume_input_in_input_currency": 500.00,
+          "volume_output_in_output_currency": 0.005,
+          "fees": 2.50,
+          "tx_hash": "abc123..."
+        }
+      ]
+    }
+  }
+}
+```
+
+## Validating webhook signatures
+
+It is strongly recommended to verify webhook signatures in production.
+Webhooks include an `x-bitwage-signature` HTTP header containing a SHA256
+HMAC signature of the payload.
+
+### Verification steps
+
+1. Get the raw request body as a UTF-8 string.
+2. Compute the HMAC-SHA256 using your signing secret.
+3. Compare the computed signature with the `x-bitwage-signature` header.
+
+### Python example
+
+```python
+import hmac
+import hashlib
+import json
+from decimal import Decimal
+from datetime import datetime, date
+
+
+def default(obj):
+    if isinstance(obj, Decimal):
+        return str(obj)
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+
+
+signing_secret = "whsec_..."  # from your webhook endpoint in the app
+signature_header = request.headers.get("BITWAGE_SIGNATURE")
+content = request.get_json(silent=True)
+bodystr = json.dumps(
+    json.loads(content),
+    cls=json.JSONEncoder,
+    ensure_ascii=False,
+    default=default,
+)
+message = endpoint_url + bodystr
+expected_sig = hmac.new(
+    signing_secret.encode("utf-8"),
+    message.encode("utf-8"),
+    hashlib.sha256,
+).hexdigest()
+
+if expected_sig == signature_header:
+    print("SIGNATURE_VERIFIED")
+```
+
+## Best practices
+
+- **Return a 200 status** promptly to acknowledge receipt. Process the event
+  asynchronously if needed.
+- **Handle duplicates** by checking for duplicate event IDs. Bitwage may retry
+  delivery if your endpoint doesn't respond with a 200.
+- **Verify signatures** to ensure webhooks are genuinely from Bitwage.

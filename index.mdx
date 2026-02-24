@@ -1,97 +1,37 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Bitwage Partner API
+description: Integrate Bitwage payroll and payment processing into your application.
 ---
 
-## Setting up
+The Bitwage Partner API lets you build payroll and payment solutions on top of
+Bitwage's infrastructure. With the API you can:
 
-Get your documentation site up and running in minutes.
+- **Create and manage users** with full KYC verification
+- **Set up payment distributions** across fiat and cryptocurrency
+- **Create and manage companies** with KYB verification
+- **Run payroll** for workers and vendors
+- **Accept crypto payments** via merchant checkout
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running with API key or OAuth authentication in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Browse the full API reference with interactive playground.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Authentication" icon="lock" href="/guides/authentication">
+    Learn about API key and OAuth 2.0 authentication.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Webhooks" icon="bell" href="/guides/webhooks">
+    Set up real-time event notifications.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Environments
 
-Everything you need to create world-class documentation.
+| Environment | API Base URL | App URL |
+|---|---|---|
+| Sandbox | `https://api.sandbox.bitwage.com` | `https://app.sandbox.bitwage.com` |
+| Production | `https://api2.bitwage.com` | `https://app.bitwage.com` |
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Use the sandbox environment for development and testing before going to production.

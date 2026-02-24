@@ -1,0 +1,69 @@
+---
+title: Terminology
+description: Key concepts and account types in the Bitwage platform.
+---
+
+## Account types
+
+### Bitwage Business
+
+A company account that invites users as "Workers" to receive payroll or
+invoice payments. Requires KYC for the business entity and business admins
+only.
+
+### Bitwage Individual
+
+A user account where the user adds their employers or clients by providing
+Bitwage's banking details to them. Requires KYC for the user.
+
+### Bitwage Worker
+
+A user account created when a user is invited to join a Business account as a
+"Worker" to receive payroll or send invoices. Does **not** require KYC.
+
+### Bitwage Business Admin
+
+A user who manages a Business Account. Can also receive payroll or send
+invoices to the Business Account. Requires KYC.
+
+## Key concepts
+
+### Distribution
+
+A distribution defines how a user receives their payment. It specifies the
+ratio of different output currencies.
+
+For example, a user could set up a distribution of 50% Bitcoin and 50% USD.
+Users can have up to 3 distributions, and the total allocation across all
+distributions must equal 100%.
+
+### Payer (External Company)
+
+A payer represents an employer or client that sends payments to a Bitwage
+Individual user. Each payer has a currency (USD or EUR) and is associated with
+a funding account (virtual bank account) that receives deposits.
+
+### Funding Account
+
+A virtual bank account assigned to a user for receiving payments from a
+specific payer. The account details (account number, routing number, IBAN,
+etc.) are provided to the payer so they can deposit funds.
+
+### Payroll (Payment Batch)
+
+A payroll is a batch of payments created by a Business account to pay one or
+more workers or vendors. Payrolls progress through these statuses:
+
+`pending` &rarr; `received` &rarr; `released` &rarr; `fulfilled`
+
+### KYC / KYB
+
+- **KYC** (Know Your Customer): Identity verification for individual users.
+- **KYB** (Know Your Business): Verification for company entities, including
+  UBO (Ultimate Beneficial Owner) verification.
+
+### Recipient
+
+A company recipient is either a worker (contractor/employee) or a vendor
+linked to a Business account. Recipients can be created with or without
+requiring a Bitwage login.

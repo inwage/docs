@@ -1,0 +1,83 @@
+---
+title: Private label
+description: Integrate the Bitwage Individual product into your application without the Bitwage UI.
+---
+
+The Private Label implementation allows you to embed Bitwage's "Individual"
+product into your application. Your users interact entirely with your UI while
+Bitwage handles payment processing behind the scenes.
+
+## How it works
+
+1. **Create a user** via the API with the `worker` product type.
+2. **Complete KYC** by uploading identity documents through the API.
+3. **Set up a payer** representing the employer or client.
+4. **Create distributions** specifying how the user receives payments.
+5. **Generate a funding account** to get banking details for the payer.
+
+The user never needs to visit the Bitwage UI. All steps are handled through
+your application using the Partner API.
+
+## KYC requirements
+
+For the Bitwage Individual product, completing KYC requires:
+
+- An image of the **front and back** of an accepted identity document
+- A **selfie** of the user with that ID
+- At least one **payer** created for the user
+
+### Accepted document types
+
+The required document types depend on the user's country and the payer
+currency. Use the [Get required document types](/api-reference/endpoint/get-api-user-document-types)
+endpoint to determine what's needed for a specific user.
+
+### Upload flow
+
+<Steps>
+  <Step title="Get required document types">
+    Call `GET /api/user/document/types` with the `user_id` and
+    `external_company_id` to get the list of required documents.
+  </Step>
+
+  <Step title="Upload identity documents">
+    Call `POST /api/user/document/upload` for each required document. For
+    documents that require a backside, upload both `front` and `back` images.
+  </Step>
+
+  <Step title="Upload tax ID (if required)">
+    If a tax ID is required, call `POST /api/user/document/upload` with
+    `doc_type: "tax_id"` and the `tax_id` and `tax_id_type` fields.
+  </Step>
+
+  <Step title="Initiate KYC">
+    Call `POST /api/user/kyc-initiate` to submit the user's information for
+    verification. Monitor the result via the
+    [KYC status webhook](/guides/webhooks#user-kyc-status-update).
+  </Step>
+</Steps>
+
+## Creating a funding account
+
+After KYC is approved, create a funding account so the user can receive
+payments:
+
+<Steps>
+  <Step title="Get TOS link (USD only)">
+    For USD funding accounts, call `GET /api/user/funding/account/tos` to get
+    the Terms of Service acceptance link. The user must accept the TOS before
+    the account can be created.
+  </Step>
+
+  <Step title="Create the account">
+    Call `POST /api/user/funding/account` with the `signed_agreement_id` (for
+    USD) to create the account. For USD, the account is created asynchronously
+    and you will be notified via webhook when it's ready.
+  </Step>
+
+  <Step title="Get bank details">
+    Call `GET /api/user/funding/account` to retrieve the virtual bank account
+    details (account number, routing number, IBAN, etc.) to share with the
+    payer.
+  </Step>
+</Steps>

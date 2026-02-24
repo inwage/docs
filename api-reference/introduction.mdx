@@ -1,33 +1,46 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: API Reference
+description: Complete reference for all Bitwage Partner API endpoints.
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+The Bitwage Partner API uses REST conventions with JSON request and response
+bodies. All endpoints are authenticated using either API key (Basic auth) or
+OAuth 2.0 bearer tokens.
 
-## Welcome
+## Base URL
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+```
+https://api.sandbox.bitwage.com   # Sandbox
+https://api2.bitwage.com          # Production
+```
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+All API endpoints require authentication. Include your credentials in the
+`Authorization` header:
+
+- **API Key**: `Authorization: Basic <ACCESS_TOKEN>`
+- **OAuth 2.0**: `Authorization: Bearer <ACCESS_TOKEN>`
+
+See the [Authentication guide](/guides/authentication) for setup instructions.
+
+## Errors
+
+The API returns standard HTTP status codes and JSON error responses:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+{
+  "error": "error_code",
+  "message": "Human-readable error description"
+}
 ```
+
+| Status | Description |
+|---|---|
+| `200` | Success |
+| `400` | Bad request — invalid parameters |
+| `401` | Unauthorized — invalid or missing credentials |
+| `403` | Forbidden — insufficient permissions |
+| `404` | Not found |
+| `422` | Validation error |
+| `500` | Internal server error |

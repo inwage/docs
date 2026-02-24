@@ -1,0 +1,55 @@
+---
+title: Idempotency
+description: Prevent duplicate operations with the Idempotency-Key header.
+---
+
+Write operations in the Bitwage Partner API support idempotency to prevent
+duplicate processing caused by network retries or other failures.
+
+## How it works
+
+Include an `Idempotency-Key` header with a unique value in your write
+requests. If you send the same request with the same idempotency key, Bitwage
+returns the original response without reprocessing the operation.
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/companies" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: unique-request-id-123" \
+  -d '{
+    "legal_name": "Acme Corp",
+    "email": "admin@acme.com",
+    ...
+  }'
+```
+
+## When to use it
+
+Idempotency keys are recommended for all write operations and **required** for
+payroll creation (`POST /api/company/workers/pay`) when using API key
+authentication.
+
+Endpoints that support idempotency:
+
+- `POST /api/companies`
+- `POST /api/companies/{company_id}/ubo`
+- `POST /api/companies/{company_id}/ubo/kyc`
+- `POST /api/companies/{company_id}/documents`
+- `POST /api/companies/{company_id}/kyb`
+- `POST /api/company/{company_id}/recipients/create`
+- `POST /api/company/{company_id}/recipients/{recipient_id}/distribution`
+- `POST /api/company/workers/pay`
+- `POST /api/company/payroll/create`
+
+## Key scoping
+
+Idempotency keys are scoped to your partner account and the specific endpoint.
+The same key used on different endpoints will not conflict.
+
+## Best practices
+
+- Use a UUID or similar unique identifier for each key.
+- Store the idempotency key alongside the request in your system so you can
+  retry with the same key if needed.
+- Do not reuse keys across different request payloads for the same endpoint.

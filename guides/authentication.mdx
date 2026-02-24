@@ -1,0 +1,130 @@
+---
+title: Authentication
+description: Authenticate with the Bitwage Partner API using API keys or OAuth 2.0.
+---
+
+Bitwage supports two authentication methods. Choose the one that fits your
+integration:
+
+| Method | Best for | Header format |
+|---|---|---|
+| API Key | Server-to-server integrations | `Authorization: Basic <ACCESS_TOKEN>` |
+| OAuth 2.0 | User-authorized access | `Authorization: Bearer <ACCESS_TOKEN>` |
+
+## API Key authentication
+
+API key authentication is the simplest way to get started. It is ideal for
+server-side integrations where your application acts on behalf of a single
+business account.
+
+### Get your API key
+
+1. Go to **Settings** > **API** in your Bitwage Business Account.
+2. Register a new Authentication App (if you haven't already).
+3. Click **Self Auth** beside the "Authorized Authentication Apps" header.
+4. Click on your app — your API key is the **Access Token** field.
+
+### Use your API key
+
+Include the API key in the `Authorization` header:
+
+```bash
+curl -X GET "https://api.sandbox.bitwage.com/api/company" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"company_id": "YOUR_COMPANY_ID"}'
+```
+
+<Warning>
+  For write operations (POST, PATCH, DELETE) with API key auth, include an
+  `Idempotency-Key` header to prevent duplicate processing. See the
+  [Idempotency guide](/guides/idempotency) for details.
+</Warning>
+
+## OAuth 2.0 authentication
+
+OAuth 2.0 uses the Authorization Code flow. This lets your application act on
+behalf of a Bitwage user after they grant permission.
+
+### Step 1: Configure your application
+
+After creating your Authentication App, note your **Client ID** and
+**Client Secret** from the app widget under "My Authentication Apps". Keep
+your Client Secret secure.
+
+### Step 2: Request an authorization code
+
+Redirect the user to the Bitwage authorization endpoint:
+
+```
+https://app.bitwage.com/authorize?client_id=YOUR_CLIENT_ID&state=YOUR_CSRF_TOKEN
+```
+
+After the user authorizes your app, they are redirected to:
+
+```
+{redirect_uri}?code={authorization_code}&state={your_csrf_token}
+```
+
+### Step 3: Exchange the code for an access token
+
+Exchange the authorization code for an access token:
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/oauth2/token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "AUTHORIZATION_CODE",
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "grant_type": "authorization_code"
+  }'
+```
+
+The response includes your access token along with the user and company IDs:
+
+```json
+{
+  "access_token": "abc123...",
+  "user_id": "1234567890",
+  "company_id": "9876543210"
+}
+```
+
+### Step 4: Use the access token
+
+Include the access token in subsequent requests:
+
+```bash
+curl -X GET "https://api.sandbox.bitwage.com/api/company" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"company_id": "YOUR_COMPANY_ID"}'
+```
+
+## OAuth scopes
+
+When registering your app, select the scopes your integration needs:
+
+| Scope | Description |
+|---|---|
+| `c_company_detail` | Read company details |
+| `c_company_worker_list` | List company workers |
+| `c_company_worker_invitations_list` | List worker invitations |
+| `c_company_workers_invite` | Invite workers |
+| `c_company_workers_pay` | Create payroll |
+| `u_user_create` | Create users |
+| `u_user_update` | Update users |
+| `u_user_update_doc` | Upload user documents |
+| `u_user_detail` | Read user details |
+| `u_user_document_list` | List user documents |
+| `u_user_payer_create` | Create payers |
+| `u_user_payer_update` | Update payers |
+| `u_user_payer_detail` | Read payer details |
+| `u_user_payer_list` | List payers |
+| `u_user_bank_details` | Read bank details |
+| `u_user_distribution_create` | Create distributions |
+| `u_user_distribution_update` | Update distributions |
+| `u_user_distribution_detail` | Read distribution details |
+| `u_user_distribution_list` | List distributions |
+| `u_user_kyc_initiate` | Initiate KYC verification |

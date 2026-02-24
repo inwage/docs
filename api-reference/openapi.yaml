@@ -1,0 +1,2617 @@
+openapi: 3.1.0
+info:
+  title: Bitwage Partner API
+  version: "2.0"
+  description: |
+    The Bitwage Partner API allows you to integrate Bitwage payroll and payment
+    functionality into your own application. You can manage users, companies,
+    distributions, payroll, and more.
+  contact:
+    name: Development Team
+    email: developers@bitwage.com
+    url: https://www.bitwage.com/support
+  license:
+    name: Copyright Bitwage, Inc. All rights reserved.
+    url: https://www.bitwage.com/policies/#terms
+
+servers:
+  - url: https://api.sandbox.bitwage.com
+    description: Sandbox
+  - url: https://api2.bitwage.com
+    description: Production
+
+security:
+  - api_key: []
+  - oauth: []
+
+tags:
+  - name: Authorization
+    description: OAuth 2.0 authorization code flow endpoints.
+  - name: Users
+    description: Create and manage user accounts.
+  - name: User Documents
+    description: Upload and manage user KYC documents.
+  - name: User Payers
+    description: Manage external payers (employers/clients) for users.
+  - name: User Distributions
+    description: Manage payment distribution destinations for users.
+  - name: User Funding
+    description: Manage funding (virtual bank) accounts for users.
+  - name: Companies
+    description: Create and manage company accounts, UBO, KYC/KYB.
+  - name: Company Workers
+    description: Invite and manage company workers.
+  - name: Company Recipients
+    description: Manage company recipients (workers and vendors).
+  - name: Company Payroll
+    description: Create and manage payrolls.
+  - name: Merchant
+    description: Crypto pay-in and BTC checkout endpoints.
+  - name: Webhooks
+    description: Webhook event schemas sent by Bitwage.
+
+paths:
+  # ──────────────────────────────────────────────
+  # Authorization
+  # ──────────────────────────────────────────────
+  /authorize:
+    get:
+      operationId: oauthAuthorize
+      tags: [Authorization]
+      summary: Request authorization code
+      description: |
+        OAuth 2.0 authorization code step. Called after a user grants access
+        in the Bitwage client. Returns a redirect URI containing the
+        authorization code.
+      security: []
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Your OAuth app client ID.
+        - name: client_state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: CSRF token from the client for security validation.
+      responses:
+        "200":
+          description: Redirect URI with authorization code.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  redirect_uri:
+                    type: string
+                    description: "URI in the format: `{redirect_uri}?code={code}&state={client_state}`"
+
+  /oauth2/token:
+    post:
+      operationId: oauthToken
+      tags: [Authorization]
+      summary: Exchange authorization code for access token
+      description: |
+        Exchange the authorization code received from `/authorize` for an
+        access token. The access token is used in subsequent API requests.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthTokenRequest"
+      responses:
+        "200":
+          description: Access token returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthTokenResponse"
+
+  # ──────────────────────────────────────────────
+  # Users
+  # ──────────────────────────────────────────────
+  /api/user/create:
+    post:
+      operationId: createUser
+      tags: [Users]
+      summary: Create user
+      description: Create a new user on behalf of a partner. Currently only `worker` product type is supported.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+      responses:
+        "200":
+          description: User created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+
+  /api/user/update:
+    post:
+      operationId: updateUser
+      tags: [Users]
+      summary: Update user
+      description: Update an existing user's profile data. All fields except `user_id` are optional (partial update).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: User updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/user/detail:
+    get:
+      operationId: getUserDetail
+      tags: [Users]
+      summary: Get user details
+      description: Retrieve profile details for a Bitwage user.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User ID for Bitwage user.
+      responses:
+        "200":
+          description: User details returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDetailResponse"
+
+  /api/user/kyc-initiate:
+    post:
+      operationId: initiateUserKyc
+      tags: [Users]
+      summary: Initiate user KYC
+      description: Initiate KYC verification for a user through the identity verification provider.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+      responses:
+        "200":
+          description: KYC initiated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+
+  # ──────────────────────────────────────────────
+  # User Documents
+  # ──────────────────────────────────────────────
+  /api/user/document/upload:
+    post:
+      operationId: uploadUserDocument
+      tags: [User Documents]
+      summary: Upload user document
+      description: |
+        Upload a KYC document or update tax ID for a user. The request shape
+        depends on the `doc_type`:
+        - For `tax_id`: provide `tax_id` and `tax_id_type` fields.
+        - For image documents: provide `category`, `issuing_country`, and `base64_image`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserDocumentUploadRequest"
+      responses:
+        "200":
+          description: Document uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/user/document/list:
+    get:
+      operationId: listUserDocuments
+      tags: [User Documents]
+      summary: List user documents
+      description: List all documents uploaded for a user, including tax ID if available.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserDocument"
+
+  /api/user/document/types:
+    get:
+      operationId: getUserDocumentTypes
+      tags: [User Documents]
+      summary: Get required document types
+      description: Get the required KYC document types based on the user's country and payer currency.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: external_company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Payer ID.
+      responses:
+        "200":
+          description: Required document types returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequiredDocTypesResponse"
+
+  # ──────────────────────────────────────────────
+  # User Payers
+  # ──────────────────────────────────────────────
+  /api/user/payer/create:
+    post:
+      operationId: createUserPayer
+      tags: [User Payers]
+      summary: Create payer
+      description: |
+        Create an external payer (employer or client) for a user.
+        Required fields vary based on `company_type`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPayerCreateRequest"
+      responses:
+        "200":
+          description: Payer created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  external_company_id:
+                    type: string
+
+  /api/user/payer/update:
+    post:
+      operationId: updateUserPayer
+      tags: [User Payers]
+      summary: Update payer
+      description: Update an existing external payer for a user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPayerUpdateRequest"
+      responses:
+        "200":
+          description: Payer updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  external_company_id:
+                    type: string
+
+  /api/user/payer/delete:
+    post:
+      operationId: deleteUserPayer
+      tags: [User Payers]
+      summary: Delete payer
+      description: Soft-delete an external payer for a user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, external_company_id]
+              properties:
+                user_id:
+                  type: string
+                external_company_id:
+                  type: string
+                  description: Payer ID.
+      responses:
+        "200":
+          description: Payer deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  external_company_id:
+                    type: string
+
+  /api/user/payer/detail:
+    get:
+      operationId: getUserPayerDetail
+      tags: [User Payers]
+      summary: Get payer details
+      description: Get details for a specific external payer associated with a user.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: external_company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Payer ID.
+      responses:
+        "200":
+          description: Payer details returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPayer"
+
+  /api/user/payer/list:
+    get:
+      operationId: listUserPayers
+      tags: [User Payers]
+      summary: List payers
+      description: List all external payers for a user.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payer list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserPayer"
+
+  # ──────────────────────────────────────────────
+  # User Distributions
+  # ──────────────────────────────────────────────
+  /api/user/distribution/fields:
+    get:
+      operationId: getDistributionFields
+      tags: [User Distributions]
+      summary: Get distribution fields
+      description: Get the required fields for creating a fiat distribution based on the user's country and currency.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Target currency code (e.g. USD, EUR, BRL).
+      responses:
+        "200":
+          description: Required fields returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currency:
+                    type: string
+                  country:
+                    type: string
+                    description: ISO 3166-1 alpha-3 country code.
+                  required_fields:
+                    type: array
+                    items:
+                      type: object
+
+  /api/user/distribution:
+    post:
+      operationId: createUserDistribution
+      tags: [User Distributions]
+      summary: Create distribution
+      description: Create a new payment distribution destination for a user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserDistributionCreateRequest"
+      responses:
+        "200":
+          description: Distribution created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distribution_id:
+                    type: string
+                  allocation:
+                    type: integer
+    delete:
+      operationId: deleteUserDistribution
+      tags: [User Distributions]
+      summary: Delete distribution
+      description: Delete a user's distribution. The distribution's allocation must be 0 before deletion.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, distribution_id]
+              properties:
+                user_id:
+                  type: string
+                distribution_id:
+                  type: string
+      responses:
+        "200":
+          description: Distribution deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                  distribution_id:
+                    type: string
+
+  /api/user/distribution/allocations:
+    patch:
+      operationId: updateUserDistributionAllocations
+      tags: [User Distributions]
+      summary: Update distribution allocations
+      description: |
+        Update allocation percentages across a user's distributions.
+        Total allocation must equal exactly 100. Maximum 3 distributions.
+        Distributions not included in the request will have their allocation set to 0.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAllocationsRequest"
+      responses:
+        "200":
+          description: Allocations updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AllocationItem"
+
+  /api/user/distribution/detail:
+    get:
+      operationId: getUserDistributionDetail
+      tags: [User Distributions]
+      summary: Get distribution details
+      description: Get details of a specific distribution for a user.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: distribution_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Distribution details returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDistribution"
+
+  /api/user/distribution/list:
+    get:
+      operationId: listUserDistributions
+      tags: [User Distributions]
+      summary: List distributions
+      description: List all distributions for a user.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Distribution list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distributions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserDistribution"
+
+  # ──────────────────────────────────────────────
+  # User Funding
+  # ──────────────────────────────────────────────
+  /api/user/funding/account:
+    post:
+      operationId: createFundingAccount
+      tags: [User Funding]
+      summary: Create funding account
+      description: |
+        Create a funding (virtual bank) account for a user. For USD accounts,
+        a `signed_agreement_id` from the TOS endpoint is required. The actual
+        bank account is created asynchronously for USD.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FundingAccountCreateRequest"
+      responses:
+        "200":
+          description: Funding account creation initiated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+    get:
+      operationId: getFundingAccount
+      tags: [User Funding]
+      summary: Get funding account details
+      description: Get bank account details for a user's funding account based on payer currency.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: external_company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Payer ID.
+      responses:
+        "200":
+          description: Funding account details returned. Response is keyed by currency.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/FundingAccountUSD"
+                  - $ref: "#/components/schemas/FundingAccountEUR"
+
+  /api/user/funding/account/tos:
+    get:
+      operationId: getFundingAccountTos
+      tags: [User Funding]
+      summary: Get funding account TOS link
+      description: |
+        Get the Terms of Service acceptance link required before creating a USD
+        funding account. The user must be fully KYC verified.
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: external_company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Payer ID.
+      responses:
+        "200":
+          description: TOS URL returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+
+  # ──────────────────────────────────────────────
+  # Companies
+  # ──────────────────────────────────────────────
+  /api/companies:
+    post:
+      operationId: createCompany
+      tags: [Companies]
+      summary: Create company
+      description: Create a new company via the Partner API. Supports idempotency.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyCreateRequest"
+      responses:
+        "200":
+          description: Company created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyCreateResponse"
+
+  /api/company:
+    get:
+      operationId: getCompanyDetail
+      tags: [Companies]
+      summary: Get company details
+      description: Get company profile details.
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Company ID from OAuth response.
+      responses:
+        "200":
+          description: Company details returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyDetailResponse"
+
+  /api/companies/{company_id}/ubo:
+    post:
+      operationId: createCompanyUbo
+      tags: [Companies]
+      summary: Create UBO admin
+      description: Create a UBO (Ultimate Beneficial Owner) admin for a partner-created company.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UboCreateRequest"
+      responses:
+        "200":
+          description: UBO admin created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company_id:
+                    type: string
+                  status:
+                    type: string
+
+  /api/companies/{company_id}/ubo/kyc:
+    post:
+      operationId: submitCompanyUboKyc
+      tags: [Companies]
+      summary: Submit UBO KYC
+      description: Submit the UBO admin's KYC verification for a partner-created company.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invoke:
+                  type: boolean
+                  default: true
+                  description: Whether to invoke the KYC check immediately.
+      responses:
+        "200":
+          description: UBO KYC submitted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company_id:
+                    type: string
+                  kyc_status:
+                    type: string
+
+  /api/companies/{company_id}/documents:
+    post:
+      operationId: uploadCompanyDocuments
+      tags: [Companies]
+      summary: Upload company documents
+      description: |
+        Upload documents for UBO admin KYC or company KYB verification.
+        The `target_type` field determines the document destination and
+        required fields.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyDocumentUploadRequest"
+      responses:
+        "200":
+          description: Document uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyDocumentUploadResponse"
+
+  /api/companies/{company_id}/kyb:
+    post:
+      operationId: submitCompanyKyb
+      tags: [Companies]
+      summary: Submit company KYB
+      description: Submit a partner company KYB profile to the verification provider.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invoke:
+                  type: boolean
+                  default: true
+                  description: Whether to invoke the KYB check immediately.
+      responses:
+        "200":
+          description: KYB submitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyKybResponse"
+    get:
+      operationId: getCompanyKybStatus
+      tags: [Companies]
+      summary: Get KYB status
+      description: Get the company's KYB verification status and any outstanding requirements.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+      responses:
+        "200":
+          description: KYB status returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyKybResponse"
+
+  # ──────────────────────────────────────────────
+  # Company Workers
+  # ──────────────────────────────────────────────
+  /api/company/workers:
+    get:
+      operationId: listCompanyWorkers
+      tags: [Company Workers]
+      summary: List company workers
+      description: Get a paginated list of company workers.
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by worker user ID.
+        - name: email
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by worker email.
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Paginated worker list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Worker"
+                  meta:
+                    $ref: "#/components/schemas/Pagination"
+
+  /api/company/workers/invite:
+    post:
+      operationId: inviteCompanyWorkers
+      tags: [Company Workers]
+      summary: Invite workers
+      description: Send invitations to workers to join the company.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, to_invite]
+              properties:
+                company_id:
+                  type: string
+                to_invite:
+                  type: array
+                  items:
+                    type: object
+                    required: [email, role]
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                      role:
+                        type: string
+                        enum: [contractor, employee, vendor]
+                      external_id:
+                        type: string
+      responses:
+        "200":
+          description: Invitations sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+
+  /api/company/worker/invite/resend:
+    post:
+      operationId: resendWorkerInvite
+      tags: [Company Workers]
+      summary: Resend worker invitation
+      description: Resend an invitation to a company worker. Maximum 3 resends allowed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, email]
+              properties:
+                company_id:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Invitation resent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+
+  /api/company/worker/invitations:
+    get:
+      operationId: listWorkerInvitations
+      tags: [Company Workers]
+      summary: List worker invitations
+      description: Get all pending worker invitations for a company.
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WorkerInvitation"
+
+  # ──────────────────────────────────────────────
+  # Company Recipients
+  # ──────────────────────────────────────────────
+  /api/company/recipients:
+    get:
+      operationId: listCompanyRecipients
+      tags: [Company Recipients]
+      summary: List company recipients
+      description: Get company recipients (workers and vendors) with filtering and pagination.
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name or email.
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [contractor, employee, vendor]
+        - name: recipient_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [user, company]
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [active, pending, inactive]
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 2-letter ISO country code.
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [name, email, created]
+        - name: sort_by_dir
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Recipient list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Recipient"
+                  meta:
+                    oneOf:
+                      - $ref: "#/components/schemas/Pagination"
+                      - type: "null"
+
+  /api/company/{company_id}/recipients/create:
+    post:
+      operationId: createCompanyRecipient
+      tags: [Company Recipients]
+      summary: Create recipient
+      description: |
+        Create and link a no-login company recipient (worker or vendor).
+        Provide a `worker` payload for contractor/employee types or a
+        `vendor` payload for vendor types.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipientCreateRequest"
+      responses:
+        "200":
+          description: Recipient created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipientCreateResponse"
+
+  /api/company/{company_id}/recipients/{recipient_id}/distribution:
+    post:
+      operationId: createRecipientDistribution
+      tags: [Company Recipients]
+      summary: Create recipient distribution
+      description: Create a distribution (payment destination) for a company recipient.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipientDistributionCreateRequest"
+      responses:
+        "200":
+          description: Distribution created for recipient.
+          content:
+            application/json:
+              schema:
+                type: object
+    delete:
+      operationId: deleteRecipientDistribution
+      tags: [Company Recipients]
+      summary: Delete recipient distribution
+      description: Delete a distribution for a company recipient. The allocation must be 0 before deletion.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [distribution_id]
+              properties:
+                distribution_id:
+                  type: string
+      responses:
+        "200":
+          description: Distribution deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/company/{company_id}/recipients/{recipient_id}/distribution/allocations:
+    patch:
+      operationId: setRecipientDistributionAllocations
+      tags: [Company Recipients]
+      summary: Set recipient distribution allocations
+      description: |
+        Set allocation percentages for a company recipient's distributions.
+        Total must equal 100. Maximum 3 distributions.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [allocations]
+              properties:
+                allocations:
+                  type: array
+                  minItems: 1
+                  maxItems: 3
+                  items:
+                    $ref: "#/components/schemas/AllocationItem"
+      responses:
+        "200":
+          description: Allocations updated.
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ──────────────────────────────────────────────
+  # Company Payroll
+  # ──────────────────────────────────────────────
+  /api/company/workers/pay:
+    post:
+      operationId: createPayroll
+      tags: [Company Payroll]
+      summary: Create payroll
+      description: |
+        Create a payroll to pay company workers or vendors. Also available at
+        `/api/company/payroll/create`. When using API key authentication,
+        an `Idempotency-Key` header is required.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollCreateRequest"
+      responses:
+        "200":
+          description: Payroll created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollCreateResponse"
+
+  /api/company/payroll/create:
+    post:
+      operationId: createPayrollAlias
+      tags: [Company Payroll]
+      summary: Create payroll (alias)
+      description: Alias for `POST /api/company/workers/pay`. See that endpoint for full documentation.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollCreateRequest"
+      responses:
+        "200":
+          description: Payroll created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollCreateResponse"
+
+  /api/company/payroll/quote/refresh:
+    post:
+      operationId: refreshPayrollQuote
+      tags: [Company Payroll]
+      summary: Refresh payroll quote
+      description: Refresh an expired crypto funding quote for a payroll.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payroll_id]
+              properties:
+                payroll_id:
+                  type: string
+      responses:
+        "200":
+          description: Quote refreshed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollQuoteRefreshResponse"
+
+  # ──────────────────────────────────────────────
+  # Merchant
+  # ──────────────────────────────────────────────
+  /api/merchant/claim/create:
+    post:
+      operationId: createMerchantClaim
+      tags: [Merchant]
+      summary: Create merchant claim
+      description: Create a merchant claim and a claim-scoped crypto quote for BTC checkout.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MerchantClaimCreateRequest"
+      responses:
+        "200":
+          description: Claim and quote created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantClaimCreateResponse"
+
+  /api/merchant/claim/quote/refresh:
+    post:
+      operationId: refreshMerchantClaimQuote
+      tags: [Merchant]
+      summary: Refresh merchant claim quote
+      description: Refresh an expired quote for an existing merchant claim.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MerchantClaimQuoteRefreshRequest"
+      responses:
+        "200":
+          description: Quote refreshed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantClaimQuoteRefreshResponse"
+
+  /api/merchant/claim/status:
+    get:
+      operationId: getMerchantClaimStatus
+      tags: [Merchant]
+      summary: Get merchant claim status
+      description: Get the current BTC checkout status for a merchant claim.
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: claim_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Claim status returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchantClaimStatusResponse"
+
+# ──────────────────────────────────────────────
+# Webhooks
+# ──────────────────────────────────────────────
+webhooks:
+  userKYCStatusUpdate:
+    post:
+      tags: [Webhooks]
+      summary: User KYC status update
+      description: Sent when a user's KYC verification status changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: user.kyc_status_update
+                data:
+                  type: object
+                  properties:
+                    user_id:
+                      type: string
+                    kyc_verification_status:
+                      type: string
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  userPaymentStatusUpdate:
+    post:
+      tags: [Webhooks]
+      summary: User payment status update
+      description: Sent when a user's payment status changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: user.payment_status_update
+                data:
+                  type: object
+                  properties:
+                    user_id:
+                      type: string
+                    status:
+                      type: string
+                      enum: [processing, released, fulfilled]
+                    payment:
+                      $ref: "#/components/schemas/Payment"
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  payrollCreated:
+    post:
+      tags: [Webhooks]
+      summary: Payroll created
+      description: Sent when a company creates a payroll.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: payroll.created
+                data:
+                  type: object
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  userFundingAccountStatus:
+    post:
+      tags: [Webhooks]
+      summary: Funding account status update
+      description: Sent when a user's funding account status changes (e.g. approved, rejected).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: user.funding_account_status
+                data:
+                  type: object
+                  properties:
+                    user_id:
+                      type: string
+                    status:
+                      type: string
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+# ──────────────────────────────────────────────
+# Components
+# ──────────────────────────────────────────────
+components:
+  securitySchemes:
+    api_key:
+      type: http
+      scheme: basic
+      description: |
+        API key authentication. Include your access token as:
+        `Authorization: Basic <ACCESS_TOKEN>`
+    oauth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://app.bitwage.com/authorize
+          tokenUrl: https://api2.bitwage.com/oauth2/token
+          scopes:
+            c_company_detail: Company Detail
+            c_company_worker_list: Company Worker List
+            c_company_worker_invitations_list: Company Worker Invitation List
+            c_company_workers_invite: Company Workers Invite
+            c_company_workers_pay: Company Workers Pay
+            u_user_create: User Create
+            u_user_update: User Update
+            u_user_update_doc: User Update Document
+            u_user_payer_create: User Payer Create
+            u_user_payer_update: User Payer Update
+            u_user_invoice_create: User Invoice Create
+            u_user_invoice_delete: User Invoice Delete
+            u_user_detail: User Detail
+            u_user_document_list: User Document List
+            u_user_payer_detail: User Payer Detail
+            u_user_payer_list: User Payer List
+            u_user_bank_details: User Bank Details
+            u_user_invoice_detail: User Invoice Detail
+            u_user_invoice_list: User Invoice List
+            u_user_distribution_detail: User Distribution Detail
+            u_user_distribution_list: User Distribution List
+            u_user_distribution_create: User Distribution Create
+            u_user_distribution_update: User Distribution Update
+            u_user_kyc_initiate: User Initiate KYC
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Unique key for idempotent requests. Recommended for all write operations.
+
+    CompanyIdPath:
+      name: company_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Company ID.
+
+    RecipientIdPath:
+      name: recipient_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Recipient ID.
+
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+      description: Page number.
+
+    PerPage:
+      name: per_page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+      description: Number of items per page.
+
+  schemas:
+    # ── Authorization ──
+    OAuthTokenRequest:
+      type: object
+      required: [code, client_id, client_secret, grant_type]
+      properties:
+        code:
+          type: string
+          description: Authorization code from the `/authorize` step.
+        client_id:
+          type: string
+          description: Your OAuth app client ID.
+        client_secret:
+          type: string
+          description: Your OAuth app client secret.
+        grant_type:
+          type: string
+          enum: [authorization_code]
+
+    OAuthTokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        user_id:
+          type: string
+        company_id:
+          type: string
+
+    # ── Users ──
+    UserCreateRequest:
+      type: object
+      required:
+        - email
+        - phone_number
+        - phone_country
+        - first_name
+        - last_name
+        - date_of_birth
+        - street_address
+        - city
+        - state
+        - zip
+        - country
+        - product
+      properties:
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+          description: International format including area code. Whitespace and special characters accepted.
+          example: "1 800 123 1234"
+        phone_country:
+          type: string
+          description: 2-character ISO country code (not numeric area code).
+          example: US
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+          description: Format YYYY-MM-DD.
+          example: "1990-01-15"
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+          description: 2-character ISO country code.
+          example: US
+        product:
+          type: string
+          enum: [worker]
+          description: Only `worker` is currently supported.
+
+    UserUpdateRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        phone_country:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    UserDetailResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+        phone_number:
+          type: string
+        phone_country:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+        kyc_verification_status:
+          type: string
+        tax_id:
+          type: string
+
+    # ── User Documents ──
+    UserDocumentUploadRequest:
+      type: object
+      required: [user_id, doc_type]
+      properties:
+        user_id:
+          type: string
+        doc_type:
+          type: string
+          description: |
+            Document type. Use `tax_id` for tax ID submission, or one of the
+            image document types for identity verification.
+        category:
+          type: string
+          enum: [front, back]
+          description: Required for image documents. Passport and proof-of-address require `front`.
+        issuing_country:
+          type: string
+          description: 2-character ISO country code. Required for image documents.
+        base64_image:
+          type: string
+          description: Base64-encoded image. Required for image documents.
+        tax_id:
+          type: string
+          description: Required when `doc_type` is `tax_id`.
+        tax_id_type:
+          type: string
+          description: Required when `doc_type` is `tax_id`.
+
+    UserDocument:
+      type: object
+      properties:
+        doc_type:
+          type: string
+        issuing_country:
+          type: string
+
+    RequiredDocTypesResponse:
+      type: object
+      properties:
+        doc_types:
+          type: array
+          items:
+            type: object
+            properties:
+              doc_type:
+                type: string
+              requires_backside:
+                type: boolean
+              requires_selfie:
+                type: boolean
+              requires_proof_of_address:
+                type: boolean
+              tax_id_types:
+                type: array
+                items:
+                  type: string
+
+    # ── User Payers ──
+    UserPayerCreateRequest:
+      type: object
+      required: [user_id, company_type, payroll_invoice_currency, name, website, email]
+      properties:
+        user_id:
+          type: string
+        company_type:
+          type: string
+          enum: [employer, client]
+        payroll_invoice_currency:
+          type: string
+          enum: [EUR, USD]
+        name:
+          type: string
+          description: Payer company name.
+        website:
+          type: string
+        email:
+          type: string
+          format: email
+        occupation:
+          type: string
+          description: Employer only.
+        payment_amount:
+          type: string
+          description: Employer only.
+        street_address:
+          type: string
+          description: Client only.
+        street_address_2:
+          type: string
+          description: Client only.
+        city:
+          type: string
+          description: Client only.
+        region:
+          type: string
+          description: Client only.
+        zip:
+          type: string
+          description: Client only.
+        country:
+          type: string
+          description: Client only. 2-character ISO country code.
+
+    UserPayerUpdateRequest:
+      allOf:
+        - $ref: "#/components/schemas/UserPayerCreateRequest"
+        - type: object
+          required: [external_company_id]
+          properties:
+            external_company_id:
+              type: string
+              description: Payer ID to update.
+
+    UserPayer:
+      type: object
+      properties:
+        external_company_id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        company_type:
+          type: string
+        payroll_invoice_currency:
+          type: string
+        website:
+          type: string
+
+    # ── User Distributions ──
+    UserDistributionCreateRequest:
+      type: object
+      required: [user_id, symbol, distribution_type, distribution_data]
+      properties:
+        user_id:
+          type: string
+        symbol:
+          type: string
+          description: Currency symbol (e.g. BTC, ETH, USD, EUR).
+        distribution_type:
+          type: string
+          enum: [crypto, fiat]
+        distribution_data:
+          type: object
+          description: Destination data. Shape depends on `distribution_type` and `symbol`.
+
+    UpdateAllocationsRequest:
+      type: object
+      required: [user_id, allocations]
+      properties:
+        user_id:
+          type: string
+        allocations:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/AllocationItem"
+          description: Total allocation across all items must equal exactly 100.
+
+    AllocationItem:
+      type: object
+      required: [distribution_id, allocation]
+      properties:
+        distribution_id:
+          type: string
+        allocation:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    UserDistribution:
+      type: object
+      properties:
+        distribution_id:
+          type: string
+        user_id:
+          type: string
+        address:
+          type: string
+        symbol:
+          type: string
+        tag:
+          type: string
+        transfer_memo:
+          type: string
+
+    # ── User Funding ──
+    FundingAccountCreateRequest:
+      type: object
+      required: [user_id, external_company_id]
+      properties:
+        user_id:
+          type: string
+        external_company_id:
+          type: string
+          description: Payer ID.
+        signed_agreement_id:
+          type: string
+          description: Required for USD accounts. Obtained from the TOS endpoint.
+
+    FundingAccountUSD:
+      type: object
+      properties:
+        USD:
+          type: object
+          properties:
+            owner_name:
+              type: string
+            owner_address:
+              type: string
+            bank_name:
+              type: string
+            bank_address:
+              type: string
+            account_number:
+              type: string
+            ach_aba_number:
+              type: string
+            wire_aba_number:
+              type: string
+
+    FundingAccountEUR:
+      type: object
+      properties:
+        EUR:
+          type: object
+          properties:
+            owner_name:
+              type: string
+            iban:
+              type: string
+            account_id:
+              type: string
+            iban_number:
+              type: string
+            iso_country_code:
+              type: string
+            iban_check_digits:
+              type: string
+            account_number:
+              type: string
+            bank_name:
+              type: string
+            bank_address:
+              type: string
+            bank_city:
+              type: string
+            bank_state:
+              type: string
+            bank_zip:
+              type: string
+            bank_country:
+              type: string
+            unique_message:
+              type: string
+            swift_code_eur:
+              type: string
+
+    # ── Companies ──
+    CompanyCreateRequest:
+      type: object
+      required:
+        - legal_name
+        - email
+        - tax_country
+        - tax_id
+        - regulatory_aml
+        - website_url
+        - company_type
+        - source_funds
+        - street_address
+        - city
+        - state
+        - zip
+        - country
+      properties:
+        legal_name:
+          type: string
+        email:
+          type: string
+          format: email
+        dba:
+          type: string
+        tax_country:
+          type: string
+        tax_state:
+          type: string
+        tax_id:
+          type: string
+        regulatory_aml:
+          type: string
+        website_url:
+          type: string
+        company_type:
+          type: string
+        source_funds:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    CompanyCreateResponse:
+      type: object
+      properties:
+        company_id:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    CompanyDetailResponse:
+      type: object
+      properties:
+        company_id:
+          type: string
+        legal_name:
+          type: string
+        has_default_funding_method:
+          type: boolean
+        kyc_verification_status:
+          type: string
+
+    UboCreateRequest:
+      type: object
+      required:
+        - email
+        - phone_number
+        - phone_country
+        - first_name
+        - last_name
+        - date_of_birth
+        - street_address
+        - city
+        - state
+        - zip
+        - country
+      properties:
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        phone_country:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    CompanyDocumentUploadRequest:
+      type: object
+      required: [target_type]
+      properties:
+        target_type:
+          type: string
+          enum: [company, ubo_admin]
+          description: Determines which document destination and required fields.
+        doc_type:
+          type: string
+          description: Required for `ubo_admin` target.
+        category:
+          type: string
+          description: Required for `ubo_admin` image uploads.
+        issuing_country:
+          type: string
+          description: Required for `ubo_admin` image uploads.
+        base64_image:
+          type: string
+          description: Required for `ubo_admin` image uploads or `company` file uploads.
+        tax_id:
+          type: string
+          description: Required for `ubo_admin` tax_id doc_type.
+        tax_id_type:
+          type: string
+          description: Required for `ubo_admin` tax_id doc_type.
+        request_id:
+          type: string
+          description: Required for `company` target. The document request ID.
+        answer:
+          type: string
+          description: For `company` target text-based answers.
+        file_name:
+          type: string
+          description: Required for `company` target when uploading a file.
+
+    CompanyDocumentUploadResponse:
+      type: object
+      properties:
+        company_id:
+          type: string
+        status:
+          type: string
+        target_type:
+          type: string
+        doc_type:
+          type: string
+        request_id:
+          type: string
+
+    CompanyKybResponse:
+      type: object
+      properties:
+        company_id:
+          type: string
+        kyb_status:
+          type: string
+        requirements:
+          type: object
+          properties:
+            missing_fields:
+              type: array
+              items:
+                type: string
+            has_ubo_admin:
+              type: boolean
+            has_beneficial_owner:
+              type: boolean
+            has_ubo_kyc_initiated:
+              type: boolean
+            has_ubo_documents:
+              type: boolean
+            outstanding:
+              type: array
+              items:
+                type: string
+        rejection_reasons:
+          type: array
+          items:
+            type: string
+
+    # ── Company Workers ──
+    Worker:
+      type: object
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        onboarding_complete:
+          type: boolean
+        has_distributions:
+          type: boolean
+
+    WorkerInvitation:
+      type: object
+      properties:
+        role:
+          type: string
+        email:
+          type: string
+          format: email
+        async_process_status:
+          type: string
+        async_fail_msg:
+          type: string
+
+    # ── Company Recipients ──
+    RecipientCreateRequest:
+      type: object
+      required: [recipient_type]
+      properties:
+        recipient_type:
+          type: string
+          enum: [contractor, employee, vendor]
+        external_id:
+          type: string
+        worker:
+          $ref: "#/components/schemas/RecipientWorkerPayload"
+        vendor:
+          $ref: "#/components/schemas/RecipientVendorPayload"
+
+    RecipientWorkerPayload:
+      type: object
+      required:
+        - email
+        - phone_number
+        - phone_country
+        - first_name
+        - last_name
+        - date_of_birth
+        - street_address
+        - city
+        - state
+        - zip
+        - country
+      properties:
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        phone_country:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    RecipientVendorPayload:
+      type: object
+      required:
+        - legal_name
+        - email
+        - tax_country
+        - tax_id
+        - regulatory_aml
+        - website_url
+        - company_type
+        - source_funds
+        - street_address
+        - city
+        - state
+        - zip
+        - country
+      properties:
+        legal_name:
+          type: string
+        email:
+          type: string
+          format: email
+        dba:
+          type: string
+        tax_country:
+          type: string
+        tax_state:
+          type: string
+        tax_id:
+          type: string
+        regulatory_aml:
+          type: string
+        website_url:
+          type: string
+        company_type:
+          type: string
+        source_funds:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    RecipientCreateResponse:
+      type: object
+      properties:
+        recipient_id:
+          type: string
+        recipient_type:
+          type: string
+        relationship_id:
+          type: string
+        status:
+          type: string
+        idempotency_replayed:
+          type: boolean
+
+    RecipientDistributionCreateRequest:
+      type: object
+      required: [symbol, distribution_type, distribution_data]
+      properties:
+        symbol:
+          type: string
+          description: Currency symbol (e.g. BTC, ETH, USD, EUR).
+        distribution_type:
+          type: string
+          enum: [crypto, fiat]
+        distribution_data:
+          type: object
+          description: Destination data. Shape depends on `distribution_type` and `symbol`.
+
+    Recipient:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        recipient_type:
+          type: string
+        status:
+          type: string
+        country:
+          type: string
+        external_id:
+          type: string
+        department:
+          type: string
+        vendor_type:
+          type: string
+        created:
+          type: string
+          format: date
+
+    # ── Company Payroll ──
+    PayrollCreateRequest:
+      type: object
+      required: [company_id, to_pay]
+      properties:
+        company_id:
+          type: string
+        to_pay:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/PayrollPaymentItem"
+        funding_method:
+          type: string
+          description: Funding method override. Uses company default if not provided.
+        funding_currency:
+          type: string
+          description: Funding currency for crypto payments.
+        currency:
+          type: string
+          description: Payroll denomination currency.
+        payroll_type:
+          type: string
+          enum: [internal, external]
+          default: internal
+        external_id:
+          type: string
+          description: Your external reference ID for this payroll.
+
+    PayrollPaymentItem:
+      type: object
+      required: [amount_fiat]
+      properties:
+        amount_fiat:
+          type: number
+          format: double
+          description: Payment amount in fiat currency.
+        user_id:
+          type: string
+          description: Recipient user ID. One of `user_id` or `company_id` is required.
+        company_id:
+          type: string
+          description: Recipient company ID. One of `user_id` or `company_id` is required.
+        country:
+          type: string
+        is_premium:
+          type: boolean
+          default: false
+        invoice_id:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        external_payment_id:
+          type: string
+
+    PayrollCreateResponse:
+      type: object
+      properties:
+        payroll_id:
+          type: string
+        fees:
+          type: number
+          format: double
+        volume_input_in_input_currency:
+          type: number
+          format: double
+        total_input_in_input_currency:
+          type: number
+          format: double
+        quote:
+          $ref: "#/components/schemas/PayrollQuote"
+
+    PayrollQuote:
+      type: object
+      properties:
+        quote_id:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        rate:
+          type: number
+          format: double
+        funding_currency:
+          type: string
+        funding_amount:
+          type: number
+          format: double
+        funding_details:
+          $ref: "#/components/schemas/FundingDetails"
+
+    PayrollQuoteRefreshResponse:
+      type: object
+      properties:
+        payroll_id:
+          type: string
+        quote_id:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        rate:
+          type: number
+          format: double
+        funding_currency:
+          type: string
+        funding_amount:
+          type: number
+          format: double
+        funding_details:
+          $ref: "#/components/schemas/FundingDetails"
+
+    FundingDetails:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Crypto address for funding.
+        network:
+          type: string
+          description: Blockchain network.
+
+    # ── Merchant ──
+    MerchantClaimCreateRequest:
+      type: object
+      required: [payer_id, amount, denomination_currency, funding_currency]
+      properties:
+        payer_id:
+          type: string
+        amount:
+          type: number
+        denomination_currency:
+          type: string
+        funding_currency:
+          type: string
+
+    MerchantClaimCreateResponse:
+      type: object
+      properties:
+        claim_id:
+          type: string
+        quote_id:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        rate:
+          type: string
+        denomination_currency:
+          type: string
+        funding_currency:
+          type: string
+        denomination_amount:
+          type: string
+        funding_amount:
+          type: string
+        funding_details:
+          $ref: "#/components/schemas/FundingDetails"
+
+    MerchantClaimQuoteRefreshRequest:
+      type: object
+      required: [company_id, claim_id]
+      properties:
+        company_id:
+          type: string
+        claim_id:
+          type: string
+
+    MerchantClaimQuoteRefreshResponse:
+      type: object
+      properties:
+        claim_id:
+          type: string
+        quote_id:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        rate:
+          type: string
+        denomination_currency:
+          type: string
+        funding_currency:
+          type: string
+        denomination_amount:
+          type: string
+        funding_amount:
+          type: string
+        funding_details:
+          $ref: "#/components/schemas/FundingDetails"
+
+    MerchantClaimStatusResponse:
+      type: object
+      properties:
+        claim_id:
+          type: string
+        status:
+          type: string
+        tx_hash:
+          type: string
+
+    # ── Shared / Webhook ──
+    Payment:
+      type: object
+      properties:
+        subpayroll_id:
+          type: string
+        received:
+          type: boolean
+        received_at:
+          type: string
+          format: date-time
+        released:
+          type: boolean
+        released_at:
+          type: string
+          format: date-time
+        fulfilled:
+          type: boolean
+        fulfilled_at:
+          type: string
+          format: date-time
+        receiver_user_id:
+          type: string
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentAllocation"
+
+    PaymentAllocation:
+      type: object
+      properties:
+        input_currency:
+          type: string
+        output_currency:
+          type: string
+        volume_input_in_input_currency:
+          type: number
+          format: double
+        volume_output_in_output_currency:
+          type: number
+          format: double
+        fees:
+          type: number
+          format: double
+        spread:
+          type: number
+          format: double
+        tx_hash:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+        has_prev:
+          type: boolean
+        has_next:
+          type: boolean
+        prev_num:
+          type: integer
+        next_num:
+          type: integer
+        per_page:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
