@@ -27,7 +27,7 @@ curl -X POST "https://api.sandbox.bitwage.com/api/companies" \
 ## When to use it
 
 Idempotency keys are recommended for all write operations and **required** for
-payroll creation (`POST /api/company/workers/pay`) when using API key
+payroll creation (`POST /api/company/payroll/create`) when using API key
 authentication.
 
 Endpoints that support idempotency:
@@ -39,7 +39,6 @@ Endpoints that support idempotency:
 - `POST /api/companies/{company_id}/kyb`
 - `POST /api/company/{company_id}/recipients/create`
 - `POST /api/company/{company_id}/recipients/{recipient_id}/distribution`
-- `POST /api/company/workers/pay`
 - `POST /api/company/payroll/create`
 
 ## Key scoping

@@ -1079,9 +1079,8 @@ paths:
       tags: [Company Recipients]
       summary: Create recipient
       description: |
-        Create and link a no-login company recipient (worker or vendor).
-        Provide a `worker` payload for contractor/employee types or a
-        `vendor` payload for vendor types.
+        Create and link a no-login company recipient (worker).
+        Provide a `worker` payload with the recipient's personal details.
       parameters:
         - $ref: "#/components/parameters/CompanyIdPath"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -1184,37 +1183,14 @@ paths:
   # ──────────────────────────────────────────────
   # Company Payroll
   # ──────────────────────────────────────────────
-  /api/company/workers/pay:
+  /api/company/payroll/create:
     post:
       operationId: createPayroll
       tags: [Company Payroll]
       summary: Create payroll
       description: |
-        Create a payroll to pay company workers or vendors. Also available at
-        `/api/company/payroll/create`. When using API key authentication,
-        an `Idempotency-Key` header is required.
-      parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PayrollCreateRequest"
-      responses:
-        "200":
-          description: Payroll created.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PayrollCreateResponse"
-
-  /api/company/payroll/create:
-    post:
-      operationId: createPayrollAlias
-      tags: [Company Payroll]
-      summary: Create payroll (alias)
-      description: Alias for `POST /api/company/workers/pay`. See that endpoint for full documentation.
+        Create a payroll to pay company workers. When using API key
+        authentication, an `Idempotency-Key` header is required.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -2161,13 +2137,11 @@ components:
       properties:
         recipient_type:
           type: string
-          enum: [contractor, employee, vendor]
+          enum: [contractor, employee]
         external_id:
           type: string
         worker:
           $ref: "#/components/schemas/RecipientWorkerPayload"
-        vendor:
-          $ref: "#/components/schemas/RecipientVendorPayload"
 
     RecipientWorkerPayload:
       type: object
@@ -2196,57 +2170,6 @@ components:
         last_name:
           type: string
         date_of_birth:
-          type: string
-        street_address:
-          type: string
-        street_address_2:
-          type: string
-        city:
-          type: string
-        state:
-          type: string
-        zip:
-          type: string
-        country:
-          type: string
-
-    RecipientVendorPayload:
-      type: object
-      required:
-        - legal_name
-        - email
-        - tax_country
-        - tax_id
-        - regulatory_aml
-        - website_url
-        - company_type
-        - source_funds
-        - street_address
-        - city
-        - state
-        - zip
-        - country
-      properties:
-        legal_name:
-          type: string
-        email:
-          type: string
-          format: email
-        dba:
-          type: string
-        tax_country:
-          type: string
-        tax_state:
-          type: string
-        tax_id:
-          type: string
-        regulatory_aml:
-          type: string
-        website_url:
-          type: string
-        company_type:
-          type: string
-        source_funds:
           type: string
         street_address:
           type: string
@@ -2342,10 +2265,6 @@ components:
         currency:
           type: string
           description: Payroll denomination currency.
-        payroll_type:
-          type: string
-          enum: [internal, external]
-          default: internal
         external_id:
           type: string
           description: Your external reference ID for this payroll.
