@@ -47,6 +47,8 @@ tags:
     description: Create and manage payrolls.
   - name: Merchant
     description: Crypto pay-in and BTC checkout endpoints.
+  - name: Wallets
+    description: Request and view wallets for payroll funding.
   - name: Webhooks
     description: Webhook event schemas sent by Bitwage.
 
@@ -1211,8 +1213,8 @@ paths:
     post:
       operationId: refreshPayrollQuote
       tags: [Company Payroll]
-      summary: Refresh payroll quote
-      description: Refresh an expired crypto funding quote for a payroll.
+      summary: Refresh payroll quotes
+      description: Refresh expired crypto funding quotes for a payroll.
       requestBody:
         required: true
         content:
@@ -1225,11 +1227,93 @@ paths:
                   type: string
       responses:
         "200":
-          description: Quote refreshed.
+          description: Payroll quotes refreshed.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PayrollQuoteRefreshResponse"
+
+  /api/vendor/payroll/quotes:
+    post:
+      operationId: createVendorPayrollQuotes
+      tags: [Company Payroll]
+      summary: Create vendor payroll quotes
+      description: |
+        Create FX quotes for a vendor payroll funded from a company wallet.
+        This endpoint supports API key authentication only.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorPayrollQuotesRequest"
+      responses:
+        "200":
+          description: Vendor payroll quotes created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorPayrollQuotesResponse"
+
+  /api/vendor/payroll/documents:
+    post:
+      operationId: createVendorPayrollDocumentUpload
+      tags: [Company Payroll]
+      summary: Create vendor payroll document upload
+      description: |
+        Create a presigned upload session for a vendor payment invoice.
+        Upload the document to the returned `upload_url`, then pass the returned
+        `invoice_upload_id` on the matching vendor payment when creating the
+        vendor payroll. This endpoint supports API key authentication only.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorPayrollDocumentUploadRequest"
+      responses:
+        "200":
+          description: Vendor payroll document upload session created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorPayrollDocumentUploadResponse"
+
+  /api/vendor/payroll:
+    post:
+      operationId: createVendorPayroll
+      tags: [Company Payroll]
+      summary: Create vendor payroll
+      description: |
+        Create a vendor payroll from previously created vendor quote IDs. An
+        `invoice_upload_id` is required for each vendor payment whose quoted USD
+        subtotal is greater than or equal to 15000.
+        This endpoint supports API key authentication only.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorPayrollCreateRequest"
+      responses:
+        "200":
+          description: Vendor payroll created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorPayrollCreateResponse"
 
   # ──────────────────────────────────────────────
   # Merchant
@@ -1298,6 +1382,169 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MerchantClaimStatusResponse"
+
+  # ──────────────────────────────────────────────
+  # Wallets
+  # ──────────────────────────────────────────────
+  /api/wallets/request:
+    post:
+      operationId: requestWallet
+      tags: [Wallets]
+      summary: Request wallet
+      description: |
+        Request a wallet for a partner-provisioned company.
+        This endpoint supports API key authentication only.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [company_id, currency]
+              properties:
+                company_id:
+                  type: string
+                  description: Company ID that the wallet should be requested for.
+                currency:
+                  type: string
+                  description: Wallet currency, for example `USD` or `EUR`.
+      responses:
+        "200":
+          description: Wallet request created or already exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, in_progress, completed, rejected]
+
+  /api/wallets:
+    get:
+      operationId: listWallets
+      tags: [Wallets]
+      summary: List wallets
+      description: |
+        List active wallets that can be used to fund payrolls for a
+        partner-provisioned company. Use the returned `id` as the
+        `funding_method` for vendor quote and payroll creation.
+      security:
+        - api_key: []
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Company ID to retrieve wallets for.
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional wallet currency filter, for example `USD`.
+      responses:
+        "200":
+          description: Wallets returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Use this value as `funding_method` for vendor quote and payroll creation.
+                          example: custodial_account_123
+                        balance:
+                          type: string
+                        currency:
+                          type: string
+                        is_default:
+                          type: boolean
+                        status:
+                          type: string
+                          enum: [pending, in_progress, completed, rejected]
+
+  /api/wallets/transactions:
+    get:
+      operationId: listWalletTransactions
+      tags: [Wallets]
+      summary: List wallet transactions
+      description: |
+        List transactions for a wallet by wallet ID. The partner
+        must have access to the company that owns the wallet.
+      security:
+        - api_key: []
+      parameters:
+        - name: wallet_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Wallet ID.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Page number.
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of transactions per page.
+      responses:
+        "200":
+          description: Wallet transactions returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: Transaction ID.
+                        created:
+                          type: string
+                          nullable: true
+                        amount:
+                          type: string
+                          nullable: true
+                        fee_amount:
+                          type: string
+                          nullable: true
+                        fee_currency:
+                          type: string
+                          nullable: true
+                        currency:
+                          type: string
+                        status:
+                          type: string
+                        type:
+                          type: string
+                        tx_hash:
+                          type: string
+                          nullable: true
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
 
 # ──────────────────────────────────────────────
 # Webhooks
@@ -1456,6 +1703,14 @@ components:
       schema:
         type: string
       description: Unique key for idempotent requests. Recommended for all write operations.
+
+    IdempotencyKeyRequired:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Unique key for idempotent write requests.
 
     CompanyIdPath:
       name: company_id
@@ -2137,11 +2392,16 @@ components:
       properties:
         recipient_type:
           type: string
-          enum: [contractor, employee]
+          enum: [contractor, employee, vendor]
         external_id:
           type: string
         worker:
           $ref: "#/components/schemas/RecipientWorkerPayload"
+        vendor:
+          $ref: "#/components/schemas/RecipientVendorPayload"
+      description: |
+        Provide `worker` when `recipient_type` is `contractor` or `employee`.
+        Provide `vendor` when `recipient_type` is `vendor`.
 
     RecipientWorkerPayload:
       type: object
@@ -2170,6 +2430,57 @@ components:
         last_name:
           type: string
         date_of_birth:
+          type: string
+        street_address:
+          type: string
+        street_address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+
+    RecipientVendorPayload:
+      type: object
+      required:
+        - legal_name
+        - email
+        - tax_country
+        - tax_id
+        - regulatory_aml
+        - website_url
+        - company_type
+        - source_funds
+        - street_address
+        - city
+        - state
+        - zip
+        - country
+      properties:
+        legal_name:
+          type: string
+        email:
+          type: string
+          format: email
+        dba:
+          type: string
+        tax_country:
+          type: string
+        tax_state:
+          type: string
+        tax_id:
+          type: string
+        regulatory_aml:
+          type: string
+        website_url:
+          type: string
+        company_type:
+          type: string
+        source_funds:
           type: string
         street_address:
           type: string
@@ -2243,6 +2554,104 @@ components:
         created:
           type: string
           format: date
+
+    # ── Wallets ──
+    WalletRequest:
+      type: object
+      required: [company_id, currency]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that the wallet should be requested for.
+        currency:
+          type: string
+          description: Wallet currency, for example `USD` or `EUR`.
+
+    WalletRequestResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, in_progress, completed, rejected]
+
+    WalletStatusListResponse:
+      type: object
+      properties:
+        statuses:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletStatus"
+
+    WalletStatus:
+      type: object
+      properties:
+        provider:
+          type: string
+          example: bvnk
+        currency:
+          type: string
+          example: USD
+        account_type:
+          type: string
+          enum: [fiat, crypto]
+        rail:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, rejected]
+        is_available_for_payroll_funding:
+          type: boolean
+        account:
+          oneOf:
+            - $ref: "#/components/schemas/Wallet"
+            - type: "null"
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Wallet funding method ID.
+          example: custodial_account_123
+        balance:
+          type: string
+        is_payroll_funding_default:
+          type: boolean
+        transactions:
+          type: array
+          items:
+            type: object
+        deposit_info:
+          type: array
+          items:
+            type: object
+        decimals:
+          type: integer
+
+    WalletFundingWalletsResponse:
+      type: object
+      properties:
+        wallets:
+          type: array
+          items:
+            $ref: "#/components/schemas/FundingWallet"
+
+    FundingWallet:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Use this value as `funding_method` for vendor quote and payroll creation.
+          example: custodial_account_123
+        balance:
+          type: string
+        currency:
+          type: string
+        is_default:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, in_progress, completed, rejected]
 
     # ── Company Payroll ──
     PayrollCreateRequest:
@@ -2341,6 +2750,14 @@ components:
       properties:
         payroll_id:
           type: string
+        quotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayrollQuoteRefreshQuote"
+
+    PayrollQuoteRefreshQuote:
+      type: object
+      properties:
         quote_id:
           type: string
         valid_from:
@@ -2369,6 +2786,230 @@ components:
         network:
           type: string
           description: Blockchain network.
+
+    # ── Vendor Payroll ──
+    VendorPayrollQuotesRequest:
+      type: object
+      required: [company_id, funding_currency, funding_method, vendor_payment_quotes]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that the vendor payroll quotes are being created for.
+        funding_currency:
+          type: string
+          description: Currency of the wallet used for funding.
+          example: USD
+        funding_method:
+          type: string
+          description: Concrete wallet funding method ID.
+          example: custodial_account_123
+        vendor_payment_quotes:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/VendorPaymentQuoteItem"
+
+    VendorPaymentQuoteItem:
+      type: object
+      required: [vendor_id, distribution_id, receiving_amount, receiving_currency]
+      properties:
+        vendor_id:
+          type: string
+          description: Vendor recipient company ID.
+        distribution_id:
+          type: string
+          description: Vendor distribution ID.
+        receiving_amount:
+          type: number
+          format: double
+          description: Amount the vendor should receive.
+        receiving_currency:
+          type: string
+          description: Currency the vendor should receive.
+
+    VendorPayrollQuotesResponse:
+      type: object
+      properties:
+        company_quotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendorQuote"
+        vendor_quotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendorQuote"
+        fees:
+          $ref: "#/components/schemas/VendorPayrollFees"
+
+    VendorQuote:
+      type: object
+      properties:
+        id:
+          type: string
+        vendor_id:
+          type: string
+        distribution_id:
+          type: string
+        base_currency:
+          type: string
+        quote_currency:
+          type: string
+        sell_rate:
+          type: number
+          format: double
+        buy_rate:
+          type: number
+          format: double
+        valid_from:
+          type: string
+          format: date-time
+        valid_to:
+          type: string
+          format: date-time
+        base_amount:
+          type: number
+          format: double
+        quote_amount:
+          type: number
+          format: double
+        base_amount_subtotal:
+          type: number
+          format: double
+        total_fees_in_base_currency:
+          type: number
+          format: double
+        percent_fee:
+          type: number
+          format: double
+        processing_fees_in_base_currency:
+          type: number
+          format: double
+        flat_fees_in_base_currency:
+          type: number
+          format: double
+
+    VendorPayrollFees:
+      type: object
+      properties:
+        all_fees_in_input_currency:
+          type: number
+          format: double
+        subtotal_in_input_currency:
+          type: number
+          format: double
+        total_amount_in_input_currency:
+          type: number
+          format: double
+
+    VendorPayrollDocumentUploadRequest:
+      type: object
+      required: [company_id, filename, content_type]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that the vendor document is being uploaded for.
+        filename:
+          type: string
+          description: Original invoice file name.
+          example: invoice-1001.pdf
+        content_type:
+          type: string
+          description: MIME type for the invoice file. Only PDF uploads are supported.
+          enum: [application/pdf]
+
+    VendorPayrollDocumentUploadResponse:
+      type: object
+      properties:
+        invoice_upload_id:
+          type: string
+          description: Upload ID to pass on the vendor payroll payment item.
+        upload_url:
+          type: string
+          format: uri
+          description: Presigned URL for uploading the invoice file.
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+          description: Headers to include when uploading the file.
+        temp_s3_key:
+          type: string
+          description: Temporary object key for the uploaded invoice.
+        expires_at:
+          type: string
+          format: date-time
+          description: Time when the upload session expires.
+
+    VendorPayrollCreateRequest:
+      type: object
+      required: [company_id, funding_currency, funding_method, vendor_payments]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that the vendor payroll is being created for.
+        name:
+          type: string
+          description: Optional display name for the vendor payroll.
+        funding_currency:
+          type: string
+          description: Currency of the wallet used for funding.
+          example: USD
+        funding_method:
+          type: string
+          description: Concrete wallet funding method ID.
+          example: custodial_account_123
+        vendor_payments:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/VendorPaymentItem"
+
+    VendorPaymentItem:
+      type: object
+      required: [vendor_id, quote_id]
+      properties:
+        vendor_id:
+          type: string
+          description: Vendor recipient company ID.
+        quote_id:
+          type: string
+          description: Quote ID returned by the vendor payroll quote endpoint.
+        invoice_upload_id:
+          type: string
+          description: Invoice upload ID returned by the document upload endpoint. Required when the vendor payment USD subtotal is greater than or equal to 15000.
+        reference_metadata:
+          $ref: "#/components/schemas/VendorPaymentReferenceMetadata"
+
+    VendorPaymentReferenceMetadata:
+      type: object
+      properties:
+        invoice_number:
+          type: string
+        invoice_date:
+          type: string
+        due_date:
+          type: string
+        memo:
+          type: string
+
+    VendorPayrollCreateResponse:
+      type: object
+      properties:
+        payroll_id:
+          type: string
+        name:
+          type: string
+        payment_mode:
+          type: string
+          example: vendor
+        currency:
+          type: string
+        volume_input_in_input_currency:
+          type: number
+          format: double
+        created:
+          type: string
+          format: date-time
 
     # ── Merchant ──
     MerchantClaimCreateRequest:
