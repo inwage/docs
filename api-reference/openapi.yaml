@@ -1580,7 +1580,7 @@ webhooks:
     post:
       tags: [Webhooks]
       summary: User payment status update
-      description: Sent when a user's payment status changes.
+      description: Sent when a user's payment status changes. Merchant claim payments include `data.claim_id`; non-claim payments may set it to `null`.
       requestBody:
         required: true
         content:
@@ -1594,7 +1594,15 @@ webhooks:
                 data:
                   type: object
                   properties:
+                    subpayroll_id:
+                      type: string
+                    claim_id:
+                      type: string
+                      nullable: true
+                      description: Claim ID for merchant claim payments. May be null for non-claim payments.
                     user_id:
+                      type: string
+                    company_id:
                       type: string
                     status:
                       type: string

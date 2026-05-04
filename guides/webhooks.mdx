@@ -52,11 +52,17 @@ Sent when a user's KYC verification status changes.
 Sent when a user's payment status changes. Includes the full payment object
 with allocation outputs.
 
+For merchant claim payments, `data.claim_id` contains the claim ID. For
+non-claim payments, this field can be `null`.
+
 ```json
 {
   "event": "user.payment_status_update",
   "data": {
+    "subpayroll_id": "9876543210",
+    "claim_id": "claim_1234567890",
     "user_id": "1234567890",
+    "company_id": "company_1234567890",
     "status": "released",
     "payment": {
       "subpayroll_id": "9876543210",
@@ -77,6 +83,10 @@ with allocation outputs.
   }
 }
 ```
+
+Payroll status webhook payloads do not include a top-level `claim_id`. For
+claim-linked payrolls, the related claim appears as `invoice_id` on each
+payment item and in the payroll-level `invoice_ids` list.
 
 ## Validating webhook signatures
 
