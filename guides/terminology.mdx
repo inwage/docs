@@ -40,14 +40,17 @@ distributions must equal 100%.
 ### Payer (External Company)
 
 A payer represents an employer or client that sends payments to a Bitwage
-Individual user. Each payer has a currency (USD or EUR) and is associated with
-a funding account (virtual bank account) that receives deposits.
+Individual user. Payers can use USD or EUR on the Bitwage platform. Through
+the Partner API, payers must use EUR.
 
 ### Funding Account
 
 A virtual bank account assigned to a user for receiving payments from a
 specific payer. The account details (account number, routing number, IBAN,
 etc.) are provided to the payer so they can deposit funds.
+
+Through the Partner API, funding accounts can be created for EUR payers only.
+USD funding accounts are not supported.
 
 ### Payroll (Payment Batch)
 

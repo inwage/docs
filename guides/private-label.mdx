@@ -13,10 +13,12 @@ Bitwage handles payment processing behind the scenes.
 2. **Complete KYC** by uploading identity documents through the API.
 3. **Set up a payer** representing the employer or client.
 4. **Create distributions** specifying how the user receives payments.
-5. **Generate a funding account** to get banking details for the payer.
+5. **Generate a funding account** to get banking details for the payer (EUR
+   payers only via the Partner API).
 
-The user never needs to visit the Bitwage UI. All steps are handled through
-your application using the Partner API.
+The Private Label flow is handled entirely through the Partner API and
+supports **EUR payers only**. USD payers and USD funding accounts are not
+supported.
 
 ## KYC requirements
 
@@ -29,7 +31,7 @@ For the Bitwage Individual product, completing KYC requires:
 ### Accepted document types
 
 The required document types depend on the user's country and the payer
-currency. Use the [Get required document types](/api-reference/endpoint/get-api-user-document-types)
+currency. Use the [Get required document types](/api-reference/user-documents/get-required-document-types)
 endpoint to determine what's needed for a specific user.
 
 ### Upload flow
@@ -40,15 +42,15 @@ endpoint to determine what's needed for a specific user.
     `external_company_id` to get the list of required documents.
   </Step>
 
-  <Step title="Upload identity documents">
-    Call `POST /api/user/document/upload` for each required document. For
-    documents that require a backside, upload both `front` and `back` images.
-  </Step>
+<Step title="Upload identity documents">
+  Call `POST /api/user/document/upload` for each required document. For
+  documents that require a backside, upload both `front` and `back` images.
+</Step>
 
-  <Step title="Upload tax ID (if required)">
-    If a tax ID is required, call `POST /api/user/document/upload` with
-    `doc_type: "tax_id"` and the `tax_id` and `tax_id_type` fields.
-  </Step>
+<Step title="Upload tax ID (if required)">
+  If a tax ID is required, call `POST /api/user/document/upload` with `doc_type:
+  "tax_id"` and the `tax_id` and `tax_id_type` fields.
+</Step>
 
   <Step title="Initiate KYC">
     Call `POST /api/user/kyc-initiate` to submit the user's information for
@@ -60,24 +62,16 @@ endpoint to determine what's needed for a specific user.
 ## Creating a funding account
 
 After KYC is approved, create a funding account so the user can receive
-payments:
+payments from their EUR payer.
 
 <Steps>
-  <Step title="Get TOS link (USD only)">
-    For USD funding accounts, call `GET /api/user/funding/account/tos` to get
-    the Terms of Service acceptance link. The user must accept the TOS before
-    the account can be created.
-  </Step>
-
   <Step title="Create the account">
-    Call `POST /api/user/funding/account` with the `signed_agreement_id` (for
-    USD) to create the account. For USD, the account is created asynchronously
-    and you will be notified via webhook when it's ready.
+    Call `POST /api/user/funding/account` with the `user_id` and
+    `external_company_id`. The payer must use EUR.
   </Step>
 
   <Step title="Get bank details">
     Call `GET /api/user/funding/account` to retrieve the virtual bank account
-    details (account number, routing number, IBAN, etc.) to share with the
-    payer.
+    details (IBAN, etc.) to share with the payer.
   </Step>
 </Steps>

@@ -302,7 +302,8 @@ paths:
       summary: Create payer
       description: |
         Create an external payer (employer or client) for a user.
-        Required fields vary based on `company_type`.
+        Required fields vary based on `company_type`. `payroll_invoice_currency`
+        must be `EUR`.
       requestBody:
         required: true
         content:
@@ -604,9 +605,9 @@ paths:
       tags: [User Funding]
       summary: Create funding account
       description: |
-        Create a funding (virtual bank) account for a user. For USD accounts,
-        a `signed_agreement_id` from the TOS endpoint is required. The actual
-        bank account is created asynchronously for USD.
+        Create a funding (virtual bank) account for a user. Supported for EUR
+        payers only. The user must be KYC approved and have at least one
+        distribution.
       requestBody:
         required: true
         content:
@@ -649,38 +650,6 @@ paths:
                 oneOf:
                   - $ref: "#/components/schemas/FundingAccountUSD"
                   - $ref: "#/components/schemas/FundingAccountEUR"
-
-  /api/user/funding/account/tos:
-    get:
-      operationId: getFundingAccountTos
-      tags: [User Funding]
-      summary: Get funding account TOS link
-      description: |
-        Get the Terms of Service acceptance link required before creating a USD
-        funding account. The user must be fully KYC verified.
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: external_company_id
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Payer ID.
-      responses:
-        "200":
-          description: TOS URL returned.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  url:
-                    type: string
-                    format: uri
 
   # ──────────────────────────────────────────────
   # Companies
@@ -1974,7 +1943,8 @@ components:
           enum: [employer, client]
         payroll_invoice_currency:
           type: string
-          enum: [EUR, USD]
+          enum: [EUR]
+          description: Must be EUR for Partner API payers.
         name:
           type: string
           description: Payer company name.
@@ -2101,10 +2071,7 @@ components:
           type: string
         external_company_id:
           type: string
-          description: Payer ID.
-        signed_agreement_id:
-          type: string
-          description: Required for USD accounts. Obtained from the TOS endpoint.
+          description: Payer ID. Must reference a payer with EUR currency.
 
     FundingAccountUSD:
       type: object
