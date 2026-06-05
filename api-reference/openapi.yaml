@@ -48,7 +48,7 @@ tags:
   - name: Merchant
     description: Crypto pay-in and BTC checkout endpoints.
   - name: Wallets
-    description: Request and view wallets for payroll funding.
+    description: Request and view partner company wallets.
   - name: Webhooks
     description: Webhook event schemas sent by Bitwage.
 
@@ -1394,6 +1394,16 @@ paths:
       description: |
         Request a wallet for a partner-provisioned company.
         This endpoint supports API key authentication only.
+
+        Supported currency and rail combinations:
+        - `USD`, `EUR`: `rail` is not required (server selects the fiat rail)
+        - `BTC`: `BITCOIN`
+        - `USDT`: `ETHEREUM`, `POLYGON`
+        - `USDC`: `ETHEREUM`, `POLYGON`
+        - `USDB`: `ROOTSTOCK`, `TAPROOT`
+
+        After requesting a wallet, its status will be `pending` until the wallet is provisioned.
+        Fiat wallets are manually provisioned whereas crypto wallets are provisioned automatically.
       security:
         - api_key: []
       parameters:
@@ -1411,7 +1421,16 @@ paths:
                   description: Company ID that the wallet should be requested for.
                 currency:
                   type: string
-                  description: Wallet currency, for example `USD` or `EUR`.
+                  description: Wallet currency.
+                  enum: [USD, EUR, BTC, USDT, USDC, USDB]
+                rail:
+                  type: string
+                  nullable: true
+                  description: |
+                    Required for crypto wallet requests.
+                    Optional for fiat wallet requests.
+                    Valid rails depend on the currency.
+                  enum: [ETHEREUM, POLYGON, BITCOIN, ROOTSTOCK, TAPROOT]
       responses:
         "200":
           description: Wallet request created or already exists.
@@ -1422,7 +1441,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [pending, in_progress, completed, rejected]
+                    enum: [pending, active, inactive]
 
   /api/wallets:
     get:
@@ -1430,9 +1449,9 @@ paths:
       tags: [Wallets]
       summary: List wallets
       description: |
-        List active wallets that can be used to fund payrolls for a
-        partner-provisioned company. Use the returned `id` as the
-        `funding_method` for vendor quote and payroll creation.
+        List active wallets for a partner-provisioned company.
+        The `is_available_for_payroll_funding` flag indicates whether a
+        wallet can be used as `funding_method` for vendor quote and payroll creation.
       security:
         - api_key: []
       parameters:
@@ -1447,7 +1466,8 @@ paths:
           required: false
           schema:
             type: string
-          description: Optional wallet currency filter, for example `USD`.
+            enum: [USD, EUR, BTC, USDT, USDC, USDB]
+          description: Optional wallet currency filter.
       responses:
         "200":
           description: Wallets returned.
@@ -1473,7 +1493,9 @@ paths:
                           type: boolean
                         status:
                           type: string
-                          enum: [pending, in_progress, completed, rejected]
+                          enum: [pending, active, inactive]
+                        is_available_for_payroll_funding:
+                          type: boolean
 
   /api/wallets/transactions:
     get:
@@ -1965,7 +1987,8 @@ components:
     # ── User Payers ──
     UserPayerCreateRequest:
       type: object
-      required: [user_id, company_type, payroll_invoice_currency, name, website, email]
+      required:
+        [user_id, company_type, payroll_invoice_currency, name, website, email]
       properties:
         user_id:
           type: string
@@ -2573,14 +2596,22 @@ components:
           description: Company ID that the wallet should be requested for.
         currency:
           type: string
-          description: Wallet currency, for example `USD` or `EUR`.
+          description: Wallet currency.
+          enum: [USD, EUR, BTC, USDT, USDC, USDB]
+        rail:
+          type: string
+          nullable: true
+          description: |
+            Required for crypto wallet requests. Optional for fiat (only domestic accounts can be requested).
+            Valid rails depend on the currency.
+          enum: [ETHEREUM, POLYGON, BITCOIN, ROOTSTOCK, TAPROOT]
 
     WalletRequestResponse:
       type: object
       properties:
         status:
           type: string
-          enum: [pending, in_progress, completed, rejected]
+          enum: [pending, active, inactive]
 
     WalletStatusListResponse:
       type: object
@@ -2606,7 +2637,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, in_progress, completed, rejected]
+          enum: [pending, active, inactive]
         is_available_for_payroll_funding:
           type: boolean
         account:
@@ -2659,7 +2690,9 @@ components:
           type: boolean
         status:
           type: string
-          enum: [pending, in_progress, completed, rejected]
+          enum: [pending, active, inactive]
+        is_available_for_payroll_funding:
+          type: boolean
 
     # ── Company Payroll ──
     PayrollCreateRequest:
@@ -2798,7 +2831,8 @@ components:
     # ── Vendor Payroll ──
     VendorPayrollQuotesRequest:
       type: object
-      required: [company_id, funding_currency, funding_method, vendor_payment_quotes]
+      required:
+        [company_id, funding_currency, funding_method, vendor_payment_quotes]
       properties:
         company_id:
           type: string
@@ -2819,7 +2853,8 @@ components:
 
     VendorPaymentQuoteItem:
       type: object
-      required: [vendor_id, distribution_id, receiving_amount, receiving_currency]
+      required:
+        [vendor_id, distribution_id, receiving_amount, receiving_currency]
       properties:
         vendor_id:
           type: string
