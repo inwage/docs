@@ -1,5 +1,6 @@
 ---
-title: USDb stablecoin
+title: "Build with USDb"
+sidebarTitle: "Overview"
 description: Mint, burn, and manage USDb stablecoin wallets for your companies.
 ---
 
@@ -7,24 +8,49 @@ USDb is a USD-pegged stablecoin built for businesses, issued on the
 [Rootstock](https://rootstock.io) Bitcoin sidechain and backed 1:1 by US
 dollar reserves. It's designed to operate inside enterprise financial
 workflows — payouts, payroll, and treasury — rather than as a standalone
-trading asset. The USDb API lets you convert a company's USD into USDb and
-back, and manage the wallets that hold them.
+trading asset. Use the USDb API to convert a company's USD into USDb and back,
+and to manage the wallets that hold them.
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/usdb/quickstart">
+  <Card title="Quickstart" icon="rocket" href="/usdb/quickstart" horizontal>
     Mint your first USDb in a few API calls.
   </Card>
-  <Card title="Authentication" icon="lock" href="/usdb/authentication">
+  <Card title="Authentication" icon="lock" href="/usdb/authentication" horizontal>
     Authenticate USDb requests with your API key.
   </Card>
-  <Card title="Mint and burn" icon="arrow-right-arrow-left" href="/usdb/mint-and-burn">
-    Convert between USD and USDb (Rootstock).
+</CardGroup>
+
+## Use cases
+
+<CardGroup cols={3}>
+  <Card title="On-chain treasury" icon="vault" href="/usdb/concepts">
+    Hold dollar value as USDb and move it 24/7, with no banking-hour limits.
   </Card>
-  <Card title="Wallets" icon="wallet" href="/usdb/balance-accounts">
-    Request wallets, check balances, and withdraw crypto.
+  <Card title="Global payouts" icon="globe" href="/usdb/balance-accounts">
+    Fund company wallets and pay workers and vendors around the world.
   </Card>
-  <Card title="Contract addresses" icon="file-contract" href="/usdb/contract-addresses">
-    USDb token addresses and Rootstock network details.
+  <Card title="Mint &amp; burn" icon="arrow-right-arrow-left" href="/usdb/mint-and-burn">
+    Convert between USD and USDb on demand as cash needs change.
+  </Card>
+</CardGroup>
+
+## Workflows
+
+<CardGroup cols={3}>
+  <Card title="Get started" icon="play">
+    - [Authenticate](/usdb/authentication)
+    - [Request wallets](/usdb/balance-accounts#request-a-wallet)
+    - [Mint USDb](/usdb/mint-and-burn#mint-usdb)
+  </Card>
+  <Card title="Manage wallets" icon="wallet">
+    - [Check balances](/usdb/balance-accounts#list-wallets)
+    - [View transactions](/usdb/balance-accounts#list-wallet-transactions)
+    - [Withdraw crypto](/usdb/balance-accounts#withdraw-crypto)
+  </Card>
+  <Card title="Convert &amp; track" icon="arrows-rotate">
+    - [Mint USDb](/usdb/mint-and-burn#mint-usdb)
+    - [Burn USDb](/usdb/mint-and-burn#burn-usdb)
+    - [Handle webhooks](/usdb/webhooks)
   </Card>
 </CardGroup>
 
@@ -39,20 +65,6 @@ while staying anchored to the US dollar:
 - **Always available** — mint, burn, and move funds 24/7.
 - **Fully managed** — Bitwage custodies the wallets and sponsors network fees.
 
-## What you can do
-
-- **Request wallets** for USD and USDb (Rootstock).
-- **Mint USDb** by converting a company's USD into USDb.
-- **Burn USDb** to convert it back into USD.
-- **Withdraw** crypto from a wallet to an external address.
-- **Track activity** through wallet transactions and webhooks.
-
-## Authentication
-
-All USDb endpoints support **API key authentication only** — OAuth 2.0 bearer
-tokens are not accepted. See the [Authentication page](/usdb/authentication)
-for how to obtain and use your API key.
-
 ## Environments
 
 | Environment | API base URL |
@@ -62,3 +74,9 @@ for how to obtain and use your API key.
 
 Use the sandbox environment for development and testing before going to
 production.
+
+<Note>
+All USDb endpoints support **API key authentication only** — OAuth 2.0 bearer
+tokens are not accepted. See [Authentication](/usdb/authentication) for how to
+obtain and use your API key.
+</Note>
