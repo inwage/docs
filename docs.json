@@ -99,21 +99,7 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Dashboard",
-          "href": "https://app.bitwage.com",
-          "icon": "gauge"
-        },
-        {
-          "anchor": "Website",
-          "href": "https://www.bitwage.com",
-          "icon": "globe"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/images/bitwage-logo.svg",
