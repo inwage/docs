@@ -39,7 +39,10 @@
           },
           {
             "tab": "API Reference",
-            "openapi": "api-reference/openapi.yaml"
+            "openapi": {
+              "source": "api-reference/openapi.yaml",
+              "directory": "api-reference"
+            }
           }
         ]
       },
@@ -49,31 +52,44 @@
         "icon": "coins",
         "tabs": [
           {
-            "tab": "Guides",
-            "groups": [
-              {
-                "group": "Getting started",
-                "pages": [
-                  "usdb/introduction",
-                  "usdb/quickstart",
-                  "usdb/authentication"
-                ]
-              },
-              {
-                "group": "Concepts",
-                "pages": [
-                  "usdb/concepts",
-                  "usdb/mint-and-burn",
-                  "usdb/balance-accounts",
-                  "usdb/contract-addresses",
-                  "usdb/webhooks"
-                ]
-              }
+            "tab": "Get Started",
+            "pages": [
+              "usdb/introduction",
+              "usdb/quickstart",
+              "usdb/authentication"
+            ]
+          },
+          {
+            "tab": "Assets",
+            "pages": [
+              "usdb/concepts",
+              "usdb/contract-addresses"
+            ]
+          },
+          {
+            "tab": "Wallets",
+            "pages": [
+              "usdb/balance-accounts"
+            ]
+          },
+          {
+            "tab": "Mint & Burn",
+            "pages": [
+              "usdb/mint-and-burn"
+            ]
+          },
+          {
+            "tab": "Webhooks",
+            "pages": [
+              "usdb/webhooks"
             ]
           },
           {
             "tab": "API Reference",
-            "openapi": "usdb/openapi.yaml"
+            "openapi": {
+              "source": "usdb/openapi.yaml",
+              "directory": "usdb-api-reference"
+            }
           }
         ]
       }
