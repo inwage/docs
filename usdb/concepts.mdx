@@ -5,29 +5,32 @@ description: How USDb wallets, rails, and conversions work.
 
 ## USDb and its backing
 
-USDb is a USD-pegged stablecoin issued on the **Rootstock** network. Every
-unit of USDb is backed 1:1 by **USDC** held on **Ethereum**. Minting locks
-USDC and issues USDb; burning releases USDC and removes USDb from circulation.
+USDb is a USD-pegged stablecoin built for businesses, issued on the
+**Rootstock** Bitcoin sidechain and backed 1:1 by US dollar reserves.
+
+Through the USDb API, you fund and redeem USDb using **USD**: minting converts
+a company's USD into USDb, and burning converts USDb back into USD. USD is the
+settlement asset for these conversions.
 
 ## Wallets and rails
 
-A wallet (also called a balance account) holds a single currency on a single
-network rail. For USDb flows, a company uses two wallets:
+A wallet (also called a balance account) holds a single currency. Crypto
+wallets also have a network rail. For USDb flows, a company uses two wallets:
 
 | Currency | Rail | Used for |
 |---|---|---|
-| `USDC` | `ETHEREUM` | The backing currency you mint from and burn to. |
+| `USD` | — | The settlement asset you mint from and burn to. |
 | `USDB` | `ROOTSTOCK` | The stablecoin you mint to and burn from. |
 
-When you request a crypto wallet, you must specify the `rail`. Request a
-USDC wallet on `ETHEREUM` and a USDb wallet on `ROOTSTOCK`.
+A crypto wallet requires a `rail`, so request the USDb wallet on `ROOTSTOCK`.
+A `USD` wallet is a fiat balance account and takes no rail.
 
 ## Eligibility
 
 Before a company can mint or burn, it must:
 
 - Have completed full KYC.
-- Have an **active** USDC wallet on the `ETHEREUM` rail.
+- Have an **active** USD wallet.
 - Have an **active** USDb wallet on the `ROOTSTOCK` rail.
 
 If any requirement is missing, mint and burn requests are rejected.

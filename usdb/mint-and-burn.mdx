@@ -1,16 +1,16 @@
 ---
 title: Mint and burn
-description: Convert between USDC (Ethereum) and USDb (Rootstock).
+description: Convert between USD and USDb (Rootstock).
 ---
 
-Minting converts a company's USDC into USDb. Burning reverses the conversion,
-turning USDb back into USDC. Both operations move funds between two of the
+Minting converts a company's USD into USDb. Burning reverses the conversion,
+turning USDb back into USD. Both operations move funds between two of the
 company's own wallets.
 
 ## Before you start
 
 The company must be [eligible](/usdb/concepts#eligibility): full KYC, plus
-active USDC (Ethereum) and USDb (Rootstock) wallets. You will need the
+active USD and USDb (Rootstock) wallets. You will need the
 `id` of both wallets, which you can get from
 [List wallets](/usdb/balance-accounts#list-wallets).
 
@@ -22,10 +22,10 @@ All mint and burn requests:
 
 ## Mint USDb
 
-Move USDC from the company's USDC (Ethereum) wallet and receive USDb in its
+Move USD from the company's USD wallet and receive USDb in its
 USDb (Rootstock) wallet.
 
-- `from_account_id` — the USDC wallet (Ethereum)
+- `from_account_id` — the USD wallet
 - `to_account_id` — the USDb wallet (Rootstock)
 
 ```bash
@@ -35,7 +35,7 @@ curl -X POST "https://api.sandbox.bitwage.com/api/wallets/mint" \
   -H "Idempotency-Key: 8f3c1e90-0c2a-4b7e-9a1d-2b6f0e2c1a44" \
   -d '{
     "company_id": "2312332124124",
-    "from_account_id": "custodial_account_usdc",
+    "from_account_id": "custodial_account_usd",
     "to_account_id": "custodial_account_usdb",
     "amount": "100.00"
   }'
@@ -49,11 +49,11 @@ curl -X POST "https://api.sandbox.bitwage.com/api/wallets/mint" \
 
 ## Burn USDb
 
-Move USDb from the company's USDb (Rootstock) wallet and receive USDC in its
-USDC (Ethereum) wallet.
+Move USDb from the company's USDb (Rootstock) wallet and receive USD in its
+USD wallet.
 
 - `from_account_id` — the USDb wallet (Rootstock)
-- `to_account_id` — the USDC wallet (Ethereum)
+- `to_account_id` — the USD wallet
 
 ```bash
 curl -X POST "https://api.sandbox.bitwage.com/api/wallets/burn" \
@@ -63,7 +63,7 @@ curl -X POST "https://api.sandbox.bitwage.com/api/wallets/burn" \
   -d '{
     "company_id": "2312332124124",
     "from_account_id": "custodial_account_usdb",
-    "to_account_id": "custodial_account_usdc",
+    "to_account_id": "custodial_account_usd",
     "amount": "100.00"
   }'
 ```

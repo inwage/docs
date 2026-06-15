@@ -1,0 +1,67 @@
+---
+title: Authentication
+description: Authenticate with the USDb API using your API key.
+---
+
+USDb endpoints support **API key authentication only**. Include your access
+token as a Basic credential:
+
+```
+Authorization: Basic <ACCESS_TOKEN>
+```
+
+<Warning>
+  OAuth 2.0 bearer tokens are **not accepted** on USDb endpoints. A request
+  authenticated with a bearer token is rejected with a `403` and the code
+  `api-key-auth-required`. This differs from the broader
+  [Partner API](/guides/authentication), which supports both API key and
+  OAuth 2.0.
+</Warning>
+
+## Get your API key
+
+1. Go to **Settings** > **API** in your Bitwage Business Account.
+2. Register a new Authentication App (if you haven't already).
+3. Click **Self Auth** beside the "Authorized Authentication Apps" header.
+4. Click on your app — your API key is the **Access Token** field.
+
+## Use your API key
+
+Include the API key in the `Authorization` header on every request:
+
+```bash
+curl "https://api.sandbox.bitwage.com/api/wallets?company_id=YOUR_COMPANY_ID" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN"
+```
+
+## Idempotency
+
+Every USDb write operation (`POST /api/wallets/request`, `mint`, `burn`, and
+`crypto-withdraw`) **requires** an `Idempotency-Key` header. Reusing the same
+key safely retries a request without repeating the operation.
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/wallets/mint" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 8f3c1e90-0c2a-4b7e-9a1d-2b6f0e2c1a44" \
+  -d '{
+    "company_id": "YOUR_COMPANY_ID",
+    "from_account_id": "custodial_account_usd",
+    "to_account_id": "custodial_account_usdb",
+    "amount": "100.00"
+  }'
+```
+
+See the [Idempotency guide](/guides/idempotency) for key scoping and best
+practices.
+
+## Environments
+
+| Environment | API base URL |
+|---|---|
+| Sandbox | `https://api.sandbox.bitwage.com` |
+| Production | `https://api2.bitwage.com` |
+
+Use the sandbox environment for development and testing before going to
+production.

@@ -3,44 +3,55 @@ title: USDb stablecoin
 description: Mint, burn, and manage USDb stablecoin wallets for your companies.
 ---
 
-USDb is a USD-pegged stablecoin on the [Rootstock](https://rootstock.io)
-network, backed 1:1 by USDC on Ethereum. The USDb API lets you convert a
-company's USDC into USDb and back, and manage the wallets that hold them.
+USDb is a USD-pegged stablecoin built for businesses, issued on the
+[Rootstock](https://rootstock.io) Bitcoin sidechain and backed 1:1 by US
+dollar reserves. It's designed to operate inside enterprise financial
+workflows — payouts, payroll, and treasury — rather than as a standalone
+trading asset. The USDb API lets you convert a company's USD into USDb and
+back, and manage the wallets that hold them.
 
 <CardGroup cols={2}>
-  <Card title="Concepts" icon="book" href="/usdb/concepts">
-    Learn how USDb wallets, rails, and conversions work.
+  <Card title="Quickstart" icon="rocket" href="/usdb/quickstart">
+    Mint your first USDb in a few API calls.
+  </Card>
+  <Card title="Authentication" icon="lock" href="/usdb/authentication">
+    Authenticate USDb requests with your API key.
   </Card>
   <Card title="Mint and burn" icon="arrow-right-arrow-left" href="/usdb/mint-and-burn">
-    Convert between USDC (Ethereum) and USDb (Rootstock).
+    Convert between USD and USDb (Rootstock).
   </Card>
   <Card title="Wallets" icon="wallet" href="/usdb/balance-accounts">
     Request wallets, check balances, and withdraw crypto.
   </Card>
-  <Card title="Webhooks" icon="bell" href="/usdb/webhooks">
-    Get notified when mint, burn, and withdrawal flows complete.
+  <Card title="Contract addresses" icon="file-contract" href="/usdb/contract-addresses">
+    USDb token addresses and Rootstock network details.
   </Card>
 </CardGroup>
 
+## Why USDb
+
+USDb brings the speed and reach of a blockchain stablecoin to your treasury,
+while staying anchored to the US dollar:
+
+- **Dollar-pegged** — backed 1:1 by US dollar reserves.
+- **Built for businesses** — designed for payouts, payroll, and treasury, not just trading.
+- **Built on Bitcoin infrastructure** — issued on Rootstock for fast, low-cost settlement.
+- **Always available** — mint, burn, and move funds 24/7.
+- **Fully managed** — Bitwage custodies the wallets and sponsors network fees.
+
 ## What you can do
 
-- **Request wallets** for USDC (Ethereum) and USDb (Rootstock).
-- **Mint USDb** by converting a company's USDC into USDb.
-- **Burn USDb** to convert it back into USDC.
+- **Request wallets** for USD and USDb (Rootstock).
+- **Mint USDb** by converting a company's USD into USDb.
+- **Burn USDb** to convert it back into USD.
 - **Withdraw** crypto from a wallet to an external address.
 - **Track activity** through wallet transactions and webhooks.
 
 ## Authentication
 
-All USDb endpoints support **API key authentication only**. Include your
-access token as a Basic credential:
-
-```
-Authorization: Basic <ACCESS_TOKEN>
-```
-
-OAuth 2.0 bearer tokens are not accepted on these endpoints. See the
-[Authentication guide](/guides/authentication) for how to obtain an API key.
+All USDb endpoints support **API key authentication only** — OAuth 2.0 bearer
+tokens are not accepted. See the [Authentication page](/usdb/authentication)
+for how to obtain and use your API key.
 
 ## Environments
 

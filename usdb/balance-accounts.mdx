@@ -12,9 +12,10 @@ All wallet endpoints use **API key authentication** only.
 ## Request a wallet
 
 Provision a wallet for a company. Crypto wallets require a `rail` — for
-example `ROOTSTOCK` for USDb or `ETHEREUM` for USDC. Provisioning is
-asynchronous; a [`wallet.request` webhook](/usdb/webhooks) fires when the
-wallet reaches a terminal status.
+example `ROOTSTOCK` for USDb. A `USD` wallet is a fiat balance account and
+takes no rail. Provisioning is asynchronous; a
+[`wallet.request` webhook](/usdb/webhooks) fires when the wallet reaches a
+terminal status.
 
 ```bash
 curl -X POST "https://api.sandbox.bitwage.com/api/wallets/request" \

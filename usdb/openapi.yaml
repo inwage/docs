@@ -6,9 +6,10 @@ info:
     The USDb API lets you mint, burn, and manage USDb stablecoin wallets for
     partner-provisioned companies.
 
-    USDb is a USD-pegged stablecoin on the Rootstock network, backed 1:1 by
-    USDC on Ethereum. Minting converts a company's USDC (Ethereum) into USDb
-    (Rootstock); burning reverses the conversion.
+    USDb is a USD-pegged stablecoin built for businesses, issued on the
+    Rootstock Bitcoin sidechain and backed 1:1 by US dollar reserves. Through
+    this API, USD is the settlement asset: minting converts a company's USD
+    into USDb (Rootstock); burning reverses the conversion.
 
     All USDb endpoints support API key authentication only.
   contact:
@@ -30,9 +31,9 @@ security:
 
 tags:
   - name: Wallets
-    description: Request and inspect USDb and USDC wallets.
+    description: Request and inspect USDb and USD wallets.
   - name: Mint & Burn
-    description: Convert between USDC (Ethereum) and USDb (Rootstock).
+    description: Convert between USD and USDb (Rootstock).
   - name: Withdrawals
     description: Withdraw crypto from a wallet to an external address.
   - name: Webhooks
@@ -50,10 +51,10 @@ paths:
       description: |
         Provision a balance account (wallet) for a partner-provisioned company.
 
-        For crypto currencies such as `USDC` or `USDB`, a `rail` is required
-        (for example `ETHEREUM` for USDC, `ROOTSTOCK` for USDB). Provisioning
-        is asynchronous; a `wallet.request` webhook fires when the wallet
-        reaches a terminal status.
+        For crypto currencies such as `USDB`, a `rail` is required (for example
+        `ROOTSTOCK` for USDB). A `USD` wallet is a fiat balance account and
+        takes no rail. Provisioning is asynchronous; a `wallet.request` webhook
+        fires when the wallet reaches a terminal status.
       security:
         - api_key: []
       parameters:
@@ -85,7 +86,7 @@ paths:
       summary: List wallets
       description: |
         List a company's wallets. Use the optional `currency` filter to return
-        only wallets of a given currency, for example `USDB` or `USDC`.
+        only wallets of a given currency, for example `USDB` or `USD`.
       security:
         - api_key: []
       parameters:
@@ -206,11 +207,10 @@ paths:
       tags: [Mint & Burn]
       summary: Mint USDb
       description: |
-        Mint USDb from USDC. Moves USDC from the `from_account_id` wallet
-        (USDC on Ethereum) and returns USDb to the `to_account_id` wallet
-        (USDb on Rootstock).
+        Mint USDb from USD. Moves USD from the `from_account_id` wallet and
+        returns USDb to the `to_account_id` wallet (USDb on Rootstock).
 
-        - `from_account_id` must be a USDC wallet on the `ETHEREUM` rail.
+        - `from_account_id` must be a USD wallet.
         - `to_account_id` must be a USDb wallet on the `ROOTSTOCK` rail.
         - `amount` is in major units as a string, with a minimum of `10`.
 
@@ -247,12 +247,11 @@ paths:
       tags: [Mint & Burn]
       summary: Burn USDb
       description: |
-        Burn USDb back into USDC. Moves USDb from the `from_account_id` wallet
-        (USDb on Rootstock) and returns USDC to the `to_account_id` wallet
-        (USDC on Ethereum).
+        Burn USDb back into USD. Moves USDb from the `from_account_id` wallet
+        (USDb on Rootstock) and returns USD to the `to_account_id` wallet.
 
         - `from_account_id` must be a USDb wallet on the `ROOTSTOCK` rail.
-        - `to_account_id` must be a USDC wallet on the `ETHEREUM` rail.
+        - `to_account_id` must be a USD wallet.
         - `amount` is in major units as a string, with a minimum of `10`.
 
         The flow is asynchronous. A successful response returns
@@ -451,14 +450,14 @@ components:
           description: Company ID that the wallet should be requested for.
         currency:
           type: string
-          description: Wallet currency, for example `USDB` or `USDC`.
+          description: Wallet currency, for example `USDB` or `USD`.
           example: USDB
         rail:
           type: string
           nullable: true
           description: |
             Network rail. Required for crypto wallets, for example `ROOTSTOCK`
-            for USDb or `ETHEREUM` for USDC.
+            for USDb. Omit for fiat wallets such as `USD`.
           example: ROOTSTOCK
 
     WalletRequestResponse:
@@ -592,13 +591,13 @@ components:
         from_account_id:
           type: string
           description: |
-            Source wallet ID. For mint, the USDC (Ethereum) wallet. For burn,
-            the USDb (Rootstock) wallet.
+            Source wallet ID. For mint, the USD wallet. For burn, the USDb
+            (Rootstock) wallet.
         to_account_id:
           type: string
           description: |
             Destination wallet ID. For mint, the USDb (Rootstock) wallet. For
-            burn, the USDC (Ethereum) wallet.
+            burn, the USD wallet.
         amount:
           type: string
           description: Amount in major units. Minimum `10`.
@@ -673,7 +672,7 @@ components:
               type: string
             from_currency:
               type: string
-              example: USDC
+              example: USD
             to_currency:
               type: string
               example: USDB
@@ -685,8 +684,16 @@ components:
               type: string
             send_tx_hash:
               type: string
+              nullable: true
+              description: |
+                On-chain hash of the send leg. `null` when the send leg is a
+                fiat (USD) movement rather than an on-chain transfer.
             deposit_tx_hash:
               type: string
+              nullable: true
+              description: |
+                On-chain hash of the deposit leg. `null` when the deposit leg
+                is a fiat (USD) movement rather than an on-chain transfer.
 
     WalletRequestWebhookData:
       allOf:

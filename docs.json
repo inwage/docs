@@ -52,12 +52,20 @@
             "tab": "Guides",
             "groups": [
               {
-                "group": "USDb",
+                "group": "Getting started",
                 "pages": [
                   "usdb/introduction",
+                  "usdb/quickstart",
+                  "usdb/authentication"
+                ]
+              },
+              {
+                "group": "Concepts",
+                "pages": [
                   "usdb/concepts",
                   "usdb/mint-and-burn",
                   "usdb/balance-accounts",
+                  "usdb/contract-addresses",
                   "usdb/webhooks"
                 ]
               }

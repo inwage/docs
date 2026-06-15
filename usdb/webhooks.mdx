@@ -16,8 +16,8 @@ behavior, see the [Webhooks guide](/guides/webhooks).
 |---|---|
 | `wallet.request` | A wallet provisioning request reached a terminal status. |
 | `wallet.deposit` | A deposit into a wallet reached a terminal status. |
-| `wallet.mint` | A mint flow (USDC → USDb) reached a terminal status. |
-| `wallet.burn` | A burn flow (USDb → USDC) reached a terminal status. |
+| `wallet.mint` | A mint flow (USD → USDb) reached a terminal status. |
+| `wallet.burn` | A burn flow (USDb → USD) reached a terminal status. |
 | `wallet.crypto_withdrawal` | A crypto withdrawal reached a terminal status. |
 
 All payloads follow the standard envelope:
@@ -33,7 +33,8 @@ All payloads follow the standard envelope:
 
 `wallet.mint` and `wallet.burn` share the same `data` shape. The flow has two
 legs: a `send` from the source wallet and a `deposit` into the destination
-wallet. Each leg has its own transaction ID and on-chain `tx_hash`.
+wallet, each with its own transaction ID. The USDb (Rootstock) leg includes an
+on-chain `tx_hash`; the USD leg is a fiat movement and its `tx_hash` is `null`.
 
 ```json
 {
@@ -43,12 +44,12 @@ wallet. Each leg has its own transaction ID and on-chain `tx_hash`.
     "status": "completed",
     "send_transaction_id": "txn_send_123",
     "deposit_transaction_id": "txn_deposit_456",
-    "from_wallet_id": "custodial_account_usdc",
+    "from_wallet_id": "custodial_account_usd",
     "to_wallet_id": "custodial_account_usdb",
-    "from_currency": "USDC",
+    "from_currency": "USD",
     "to_currency": "USDB",
     "amount": "100.00",
-    "send_tx_hash": "0xabc...",
+    "send_tx_hash": null,
     "deposit_tx_hash": "0xdef..."
   }
 }

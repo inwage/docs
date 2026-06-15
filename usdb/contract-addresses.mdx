@@ -1,0 +1,88 @@
+---
+title: USDb contract addresses
+description: Official USDb token contract addresses and network details on Rootstock.
+---
+
+USDb is an [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token deployed on the
+[Rootstock](https://rootstock.io) network. Use the addresses below to verify
+balances on-chain, receive USDb to an external wallet, or integrate USDb into
+your own tooling.
+
+<Warning>
+  Always confirm you are using the correct contract address and network. Tokens
+  sent to the wrong address or an unsupported network **cannot be recovered**.
+  Verify every address against this page before transacting.
+</Warning>
+
+## Token details
+
+| Property | Value |
+|---|---|
+| Name | `Bitcoin USD` |
+| Symbol | `USDB` |
+| Decimals | `6` |
+| Standard | ERC-20 (with [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) `permit`) |
+| Network | Rootstock (RSK) |
+
+<Note>
+  USDb uses **6 decimals** — `1 USDB = 1000000` base units. Account for this
+  when reading on-chain balances or constructing transfers.
+</Note>
+
+## Contract addresses
+
+| Network | Chain ID | USDb token contract | Explorer |
+|---|---|---|---|
+| Rootstock Mainnet | `30` | `0x83dc5337ef304a9c3852253e9c52abdfb7db6d02` | [View](https://rootstock.blockscout.com/address/0x83dc5337ef304a9c3852253e9c52abdfb7db6d02) |
+| Rootstock Testnet | `31` | `0xa89f083e5d5ba6a6d45830f8364db7b02a6e34c9` | [View](https://rootstock-testnet.blockscout.com/address/0xa89f083e5d5ba6a6d45830f8364db7b02a6e34c9) |
+
+The contract is an upgradeable transparent proxy — the address above is stable
+and is the one you should always interact with.
+
+## Network details
+
+To connect a wallet, node, or RPC client to Rootstock, use the following
+network parameters.
+
+<Tabs>
+  <Tab title="Mainnet">
+    | Field | Value |
+    |---|---|
+    | Network name | Rootstock Mainnet |
+    | Chain ID | `30` |
+    | Public RPC | `https://public-node.rsk.co` |
+    | Native gas token | RBTC |
+    | Block explorer | [rootstock.blockscout.com](https://rootstock.blockscout.com) |
+  </Tab>
+  <Tab title="Testnet">
+    | Field | Value |
+    |---|---|
+    | Network name | Rootstock Testnet |
+    | Chain ID | `31` |
+    | Public RPC | `https://public-node.testnet.rsk.co` |
+    | Native gas token | tRBTC |
+    | Block explorer | [rootstock-testnet.blockscout.com](https://rootstock-testnet.blockscout.com) |
+  </Tab>
+</Tabs>
+
+<Note>
+  The public RPC endpoints above are rate-limited and intended for light use.
+  For production workloads, provision a dedicated endpoint from the
+  [Rootstock RPC portal](https://rpc.rootstock.io).
+</Note>
+
+## On-chain transfers
+
+USDb is a standard ERC-20, so it works with any ERC-20-compatible wallet,
+library, or contract. Transfers, approvals, and `permit`-based gasless
+approvals behave exactly as they do for other ERC-20 tokens — point your tooling
+at the contract address for the relevant network and use 6-decimal amounts.
+
+Gas on Rootstock is paid in **RBTC** (the network's native token), not in USDb.
+A wallet needs a small RBTC balance to broadcast a transfer.
+
+<Note>
+  For minting, burning, and Bitwage-custodied wallets, use the
+  [USDb API](/usdb/quickstart) rather than interacting with the contract
+  directly — Bitwage manages those wallets and sponsors their network fees.
+</Note>
