@@ -9,32 +9,65 @@
   },
   "favicon": "/images/favicon.png",
   "navigation": {
-    "tabs": [
+    "products": [
       {
-        "tab": "Guides",
-        "groups": [
+        "product": "Partner API",
+        "description": "Manage users, companies, payroll, and payments.",
+        "icon": "money-check-dollar",
+        "tabs": [
           {
-            "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "guides/authentication"
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "Getting started",
+                "pages": [
+                  "index",
+                  "quickstart",
+                  "guides/authentication"
+                ]
+              },
+              {
+                "group": "Concepts",
+                "pages": [
+                  "guides/terminology",
+                  "guides/private-label",
+                  "guides/webhooks",
+                  "guides/idempotency"
+                ]
+              }
             ]
           },
           {
-            "group": "Concepts",
-            "pages": [
-              "guides/terminology",
-              "guides/private-label",
-              "guides/webhooks",
-              "guides/idempotency"
-            ]
+            "tab": "API Reference",
+            "openapi": "api-reference/openapi.yaml"
           }
         ]
       },
       {
-        "tab": "API Reference",
-        "openapi": "api-reference/openapi.yaml"
+        "product": "USDb Stablecoin",
+        "description": "Mint, burn, and manage USDb stablecoin wallets.",
+        "icon": "coins",
+        "tabs": [
+          {
+            "tab": "Guides",
+            "groups": [
+              {
+                "group": "USDb",
+                "pages": [
+                  "usdb/introduction",
+                  "usdb/concepts",
+                  "usdb/mint-and-burn",
+                  "usdb/balance-accounts",
+                  "usdb/webhooks"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "API Reference",
+            "openapi": "usdb/openapi.yaml"
+          }
+        ]
       }
     ],
     "global": {

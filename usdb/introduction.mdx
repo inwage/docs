@@ -1,0 +1,53 @@
+---
+title: USDb stablecoin
+description: Mint, burn, and manage USDb stablecoin wallets for your companies.
+---
+
+USDb is a USD-pegged stablecoin on the [Rootstock](https://rootstock.io)
+network, backed 1:1 by USDC on Ethereum. The USDb API lets you convert a
+company's USDC into USDb and back, and manage the wallets that hold them.
+
+<CardGroup cols={2}>
+  <Card title="Concepts" icon="book" href="/usdb/concepts">
+    Learn how USDb wallets, rails, and conversions work.
+  </Card>
+  <Card title="Mint and burn" icon="arrow-right-arrow-left" href="/usdb/mint-and-burn">
+    Convert between USDC (Ethereum) and USDb (Rootstock).
+  </Card>
+  <Card title="Wallets" icon="wallet" href="/usdb/balance-accounts">
+    Request wallets, check balances, and withdraw crypto.
+  </Card>
+  <Card title="Webhooks" icon="bell" href="/usdb/webhooks">
+    Get notified when mint, burn, and withdrawal flows complete.
+  </Card>
+</CardGroup>
+
+## What you can do
+
+- **Request wallets** for USDC (Ethereum) and USDb (Rootstock).
+- **Mint USDb** by converting a company's USDC into USDb.
+- **Burn USDb** to convert it back into USDC.
+- **Withdraw** crypto from a wallet to an external address.
+- **Track activity** through wallet transactions and webhooks.
+
+## Authentication
+
+All USDb endpoints support **API key authentication only**. Include your
+access token as a Basic credential:
+
+```
+Authorization: Basic <ACCESS_TOKEN>
+```
+
+OAuth 2.0 bearer tokens are not accepted on these endpoints. See the
+[Authentication guide](/guides/authentication) for how to obtain an API key.
+
+## Environments
+
+| Environment | API base URL |
+|---|---|
+| Sandbox | `https://api.sandbox.bitwage.com` |
+| Production | `https://api2.bitwage.com` |
+
+Use the sandbox environment for development and testing before going to
+production.

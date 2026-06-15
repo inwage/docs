@@ -1,0 +1,118 @@
+---
+title: Webhooks
+description: Get notified when USDb wallet, mint, burn, and withdrawal flows complete.
+---
+
+USDb flows settle asynchronously. Instead of polling, configure a webhook and
+react to events when each flow reaches a terminal status.
+
+Set up and manage your endpoint from the **Webhooks** tab in your Bitwage
+Business Account settings. For signature verification and general delivery
+behavior, see the [Webhooks guide](/guides/webhooks).
+
+## Events
+
+| Event | Description |
+|---|---|
+| `wallet.request` | A wallet provisioning request reached a terminal status. |
+| `wallet.deposit` | A deposit into a wallet reached a terminal status. |
+| `wallet.mint` | A mint flow (USDC → USDb) reached a terminal status. |
+| `wallet.burn` | A burn flow (USDb → USDC) reached a terminal status. |
+| `wallet.crypto_withdrawal` | A crypto withdrawal reached a terminal status. |
+
+All payloads follow the standard envelope:
+
+```json
+{
+  "event": "event_name",
+  "data": { ... }
+}
+```
+
+## Mint and burn
+
+`wallet.mint` and `wallet.burn` share the same `data` shape. The flow has two
+legs: a `send` from the source wallet and a `deposit` into the destination
+wallet. Each leg has its own transaction ID and on-chain `tx_hash`.
+
+```json
+{
+  "event": "wallet.mint",
+  "data": {
+    "company_id": "2312332124124",
+    "status": "completed",
+    "send_transaction_id": "txn_send_123",
+    "deposit_transaction_id": "txn_deposit_456",
+    "from_wallet_id": "custodial_account_usdc",
+    "to_wallet_id": "custodial_account_usdb",
+    "from_currency": "USDC",
+    "to_currency": "USDB",
+    "amount": "100.00",
+    "send_tx_hash": "0xabc...",
+    "deposit_tx_hash": "0xdef..."
+  }
+}
+```
+
+A `status` of `completed` means funds have moved and the conversion is final.
+A `status` of `failed` means the conversion did not complete.
+
+## Wallet request
+
+```json
+{
+  "event": "wallet.request",
+  "data": {
+    "company_id": "2312332124124",
+    "account_id": "custodial_account_usdb",
+    "status": "completed",
+    "currency": "USDB",
+    "rail": "ROOTSTOCK"
+  }
+}
+```
+
+## Deposit
+
+```json
+{
+  "event": "wallet.deposit",
+  "data": {
+    "company_id": "2312332124124",
+    "account_id": "custodial_account_usdb",
+    "status": "completed",
+    "transaction_id": "txn_789",
+    "currency": "USDB",
+    "amount": "100.00",
+    "rail": "ROOTSTOCK",
+    "tx_hash": "0xabc..."
+  }
+}
+```
+
+## Crypto withdrawal
+
+```json
+{
+  "event": "wallet.crypto_withdrawal",
+  "data": {
+    "company_id": "2312332124124",
+    "account_id": "custodial_account_usdb",
+    "status": "completed",
+    "transaction_id": "txn_456",
+    "currency": "USDB",
+    "amount": "50.00",
+    "rail": "ROOTSTOCK",
+    "destination_address": "0xRecipientAddress",
+    "tx_hash": "0xabc..."
+  }
+}
+```
+
+## Best practices
+
+- **Return a 200** promptly to acknowledge receipt, then process asynchronously.
+- **Verify signatures** with the `x-bitwage-signature` header — see the
+  [Webhooks guide](/guides/webhooks#validating-webhook-signatures).
+- **Treat events as the source of truth** for completion. A mint or burn API
+  response only confirms the request was accepted.

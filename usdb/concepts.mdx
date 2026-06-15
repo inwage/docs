@@ -1,0 +1,52 @@
+---
+title: Concepts
+description: How USDb wallets, rails, and conversions work.
+---
+
+## USDb and its backing
+
+USDb is a USD-pegged stablecoin issued on the **Rootstock** network. Every
+unit of USDb is backed 1:1 by **USDC** held on **Ethereum**. Minting locks
+USDC and issues USDb; burning releases USDC and removes USDb from circulation.
+
+## Wallets and rails
+
+A wallet (also called a balance account) holds a single currency on a single
+network rail. For USDb flows, a company uses two wallets:
+
+| Currency | Rail | Used for |
+|---|---|---|
+| `USDC` | `ETHEREUM` | The backing currency you mint from and burn to. |
+| `USDB` | `ROOTSTOCK` | The stablecoin you mint to and burn from. |
+
+When you request a crypto wallet, you must specify the `rail`. Request a
+USDC wallet on `ETHEREUM` and a USDb wallet on `ROOTSTOCK`.
+
+## Eligibility
+
+Before a company can mint or burn, it must:
+
+- Have completed full KYC.
+- Have an **active** USDC wallet on the `ETHEREUM` rail.
+- Have an **active** USDb wallet on the `ROOTSTOCK` rail.
+
+If any requirement is missing, mint and burn requests are rejected.
+
+## Amounts
+
+Amounts are always expressed in **major units** as a string — for example
+`"100.00"` for 100 USDb. The minimum amount for a mint or burn is **10**.
+
+## Conversions are asynchronous
+
+Mint, burn, and withdrawal requests are processed asynchronously. The API
+acknowledges the request immediately, then settles the conversion in the
+background. Use [webhooks](/usdb/webhooks) to learn when a flow reaches a
+terminal status rather than polling.
+
+<Note>
+Because conversions settle in the background, a successful mint or burn
+response only confirms that the request was **accepted**, not that funds have
+moved. Wait for the corresponding `wallet.mint` or `wallet.burn` webhook
+before treating a conversion as complete.
+</Note>

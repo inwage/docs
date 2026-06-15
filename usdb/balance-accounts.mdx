@@ -1,0 +1,142 @@
+---
+title: Wallets
+description: Request wallets, check balances, view transactions, and withdraw crypto.
+---
+
+A wallet (balance account) holds a single currency on a single rail. Use these
+endpoints to provision wallets, inspect balances and history, and withdraw
+crypto to an external address.
+
+All wallet endpoints use **API key authentication** only.
+
+## Request a wallet
+
+Provision a wallet for a company. Crypto wallets require a `rail` — for
+example `ROOTSTOCK` for USDb or `ETHEREUM` for USDC. Provisioning is
+asynchronous; a [`wallet.request` webhook](/usdb/webhooks) fires when the
+wallet reaches a terminal status.
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/wallets/request" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 4c2f8a10-9b3d-4e72-8a1c-6f0b2d3e4a55" \
+  -d '{
+    "company_id": "2312332124124",
+    "currency": "USDB",
+    "rail": "ROOTSTOCK"
+  }'
+```
+
+```json Response
+{
+  "status": "pending"
+}
+```
+
+## List wallets
+
+List a company's wallets. Pass an optional `currency` filter to narrow the
+results. The returned `id` is the wallet ID you use as `from_account_id` /
+`to_account_id` in [mint and burn](/usdb/mint-and-burn) and as `account_id`
+in withdrawals.
+
+```bash
+curl "https://api.sandbox.bitwage.com/api/wallets?company_id=2312332124124&currency=USDB" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN"
+```
+
+```json Response
+{
+  "wallets": [
+    {
+      "id": "custodial_account_usdb",
+      "balance": "1250.00",
+      "currency": "USDB",
+      "is_default": false,
+      "status": "active",
+      "is_available_for_payroll_funding": true
+    }
+  ]
+}
+```
+
+## Get a wallet
+
+Retrieve a single wallet by its account ID.
+
+```bash
+curl "https://api.sandbox.bitwage.com/api/wallets/custodial_account_usdb?company_id=2312332124124" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN"
+```
+
+```json Response
+{
+  "id": "custodial_account_usdb",
+  "balance": "1250.00",
+  "currency": "USDB",
+  "rail": "ROOTSTOCK",
+  "status": "active"
+}
+```
+
+## List wallet transactions
+
+List a wallet's transaction history, including mint and burn legs
+(`mint_send`, `mint_deposit`, `burn_send`, `burn_deposit`), deposits, and
+withdrawals. Results are paginated.
+
+```bash
+curl "https://api.sandbox.bitwage.com/api/wallets/transactions?wallet_id=custodial_account_usdb&page=1&per_page=20" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN"
+```
+
+```json Response
+{
+  "transactions": [
+    {
+      "transaction_id": "txn_123",
+      "account_id": "custodial_account_usdb",
+      "amount": "100.00",
+      "currency": "USDB",
+      "status": "completed",
+      "type": "mint_deposit",
+      "rail": "ROOTSTOCK",
+      "tx_hash": "0xabc..."
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 1,
+    "total_pages": 1
+  }
+}
+```
+
+## Withdraw crypto
+
+Withdraw funds from a wallet to an external blockchain address. The
+destination address must be valid for the wallet's rail. A
+[`wallet.crypto_withdrawal` webhook](/usdb/webhooks) fires when the
+withdrawal reaches a terminal status.
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/wallets/crypto-withdraw" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 7e1a9c44-2d6b-4f30-9c8a-1b5e3f2d0a66" \
+  -d '{
+    "company_id": "2312332124124",
+    "account_id": "custodial_account_usdb",
+    "destination_address": "0xRecipientAddress",
+    "amount": "50.00"
+  }'
+```
+
+```json Response
+{
+  "transaction_id": "txn_456",
+  "withdrawal_id": "wd_789"
+}
+```

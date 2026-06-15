@@ -1,0 +1,98 @@
+---
+title: Mint and burn
+description: Convert between USDC (Ethereum) and USDb (Rootstock).
+---
+
+Minting converts a company's USDC into USDb. Burning reverses the conversion,
+turning USDb back into USDC. Both operations move funds between two of the
+company's own wallets.
+
+## Before you start
+
+The company must be [eligible](/usdb/concepts#eligibility): full KYC, plus
+active USDC (Ethereum) and USDb (Rootstock) wallets. You will need the
+`id` of both wallets, which you can get from
+[List wallets](/usdb/balance-accounts#list-wallets).
+
+All mint and burn requests:
+
+- Use **API key authentication** only.
+- Require an `Idempotency-Key` header.
+- Take an `amount` in major units (string), with a minimum of `10`.
+
+## Mint USDb
+
+Move USDC from the company's USDC (Ethereum) wallet and receive USDb in its
+USDb (Rootstock) wallet.
+
+- `from_account_id` — the USDC wallet (Ethereum)
+- `to_account_id` — the USDb wallet (Rootstock)
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/wallets/mint" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 8f3c1e90-0c2a-4b7e-9a1d-2b6f0e2c1a44" \
+  -d '{
+    "company_id": "2312332124124",
+    "from_account_id": "custodial_account_usdc",
+    "to_account_id": "custodial_account_usdb",
+    "amount": "100.00"
+  }'
+```
+
+```json Response
+{
+  "status": "initiated"
+}
+```
+
+## Burn USDb
+
+Move USDb from the company's USDb (Rootstock) wallet and receive USDC in its
+USDC (Ethereum) wallet.
+
+- `from_account_id` — the USDb wallet (Rootstock)
+- `to_account_id` — the USDC wallet (Ethereum)
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/wallets/burn" \
+  -H "Authorization: Basic YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 1b9d6f22-5e3a-4c81-bf0e-7a2c4d1e9f33" \
+  -d '{
+    "company_id": "2312332124124",
+    "from_account_id": "custodial_account_usdb",
+    "to_account_id": "custodial_account_usdc",
+    "amount": "100.00"
+  }'
+```
+
+```json Response
+{
+  "status": "initiated"
+}
+```
+
+## What happens next
+
+A `status` of `initiated` means the conversion was accepted and is settling
+in the background. When it finishes, Bitwage sends a
+[`wallet.mint` or `wallet.burn` webhook](/usdb/webhooks) with the final
+status and the underlying transaction details.
+
+<Warning>
+Do not retry a mint or burn with a new idempotency key just because the
+response has not arrived. Reuse the same `Idempotency-Key` to safely retry —
+a replay returns the original result without converting funds twice.
+</Warning>
+
+## Errors
+
+| Code | Meaning |
+|---|---|
+| `custodial-below-minimum` | The amount is below the `10` minimum. |
+| `custodial-insufficient-balance` | The source wallet does not have enough balance. |
+| `custodial-invalid-from-currency` | The source wallet is not the expected currency for this operation. |
+| `custodial-invalid-from-rail` | The source wallet is on the wrong rail. |
+| `operational-wallets-not-found` | The company is not provisioned for USDb mint/burn. |

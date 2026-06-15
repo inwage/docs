@@ -1,0 +1,795 @@
+openapi: 3.1.0
+info:
+  title: Bitwage USDb API
+  version: "1.0"
+  description: |
+    The USDb API lets you mint, burn, and manage USDb stablecoin wallets for
+    partner-provisioned companies.
+
+    USDb is a USD-pegged stablecoin on the Rootstock network, backed 1:1 by
+    USDC on Ethereum. Minting converts a company's USDC (Ethereum) into USDb
+    (Rootstock); burning reverses the conversion.
+
+    All USDb endpoints support API key authentication only.
+  contact:
+    name: Development Team
+    email: developers@bitwage.com
+    url: https://www.bitwage.com/support
+  license:
+    name: Copyright Bitwage, Inc. All rights reserved.
+    url: https://www.bitwage.com/policies/#terms
+
+servers:
+  - url: https://api.sandbox.bitwage.com
+    description: Sandbox
+  - url: https://api2.bitwage.com
+    description: Production
+
+security:
+  - api_key: []
+
+tags:
+  - name: Wallets
+    description: Request and inspect USDb and USDC wallets.
+  - name: Mint & Burn
+    description: Convert between USDC (Ethereum) and USDb (Rootstock).
+  - name: Withdrawals
+    description: Withdraw crypto from a wallet to an external address.
+  - name: Webhooks
+    description: Webhook event schemas sent by Bitwage for USDb flows.
+
+paths:
+  # ──────────────────────────────────────────────
+  # Wallets
+  # ──────────────────────────────────────────────
+  /api/wallets/request:
+    post:
+      operationId: requestUsdbWallet
+      tags: [Wallets]
+      summary: Request wallet
+      description: |
+        Provision a balance account (wallet) for a partner-provisioned company.
+
+        For crypto currencies such as `USDC` or `USDB`, a `rail` is required
+        (for example `ETHEREUM` for USDC, `ROOTSTOCK` for USDB). Provisioning
+        is asynchronous; a `wallet.request` webhook fires when the wallet
+        reaches a terminal status.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletRequest"
+      responses:
+        "200":
+          description: Wallet request created or already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletRequestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/wallets:
+    get:
+      operationId: listUsdbWallets
+      tags: [Wallets]
+      summary: List wallets
+      description: |
+        List a company's wallets. Use the optional `currency` filter to return
+        only wallets of a given currency, for example `USDB` or `USDC`.
+      security:
+        - api_key: []
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Company ID to retrieve wallets for.
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional currency filter, for example `USDB`.
+      responses:
+        "200":
+          description: Wallets returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/wallets/{account_id}:
+    get:
+      operationId: getUsdbWallet
+      tags: [Wallets]
+      summary: Get wallet
+      description: |
+        Retrieve a single wallet by its account ID. The partner must have
+        access to the company that owns the wallet.
+      security:
+        - api_key: []
+      parameters:
+        - name: account_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Wallet account ID.
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Company ID that owns the wallet.
+      responses:
+        "200":
+          description: Wallet returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/wallets/transactions:
+    get:
+      operationId: listUsdbWalletTransactions
+      tags: [Wallets]
+      summary: List wallet transactions
+      description: |
+        List transactions for a wallet by wallet ID. The partner must have
+        access to the company that owns the wallet.
+      security:
+        - api_key: []
+      parameters:
+        - name: wallet_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Wallet ID.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Page number.
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Number of transactions per page.
+      responses:
+        "200":
+          description: Wallet transactions returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletTransactionsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ──────────────────────────────────────────────
+  # Mint & Burn
+  # ──────────────────────────────────────────────
+  /api/wallets/mint:
+    post:
+      operationId: mintUsdb
+      tags: [Mint & Burn]
+      summary: Mint USDb
+      description: |
+        Mint USDb from USDC. Moves USDC from the `from_account_id` wallet
+        (USDC on Ethereum) and returns USDb to the `to_account_id` wallet
+        (USDb on Rootstock).
+
+        - `from_account_id` must be a USDC wallet on the `ETHEREUM` rail.
+        - `to_account_id` must be a USDb wallet on the `ROOTSTOCK` rail.
+        - `amount` is in major units as a string, with a minimum of `10`.
+
+        The flow is asynchronous. A successful response returns
+        `{ "status": "initiated" }`; the conversion completes later and a
+        `wallet.mint` webhook fires when it reaches a terminal status.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MintBurnRequest"
+      responses:
+        "200":
+          description: Mint initiated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintBurnResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/wallets/burn:
+    post:
+      operationId: burnUsdb
+      tags: [Mint & Burn]
+      summary: Burn USDb
+      description: |
+        Burn USDb back into USDC. Moves USDb from the `from_account_id` wallet
+        (USDb on Rootstock) and returns USDC to the `to_account_id` wallet
+        (USDC on Ethereum).
+
+        - `from_account_id` must be a USDb wallet on the `ROOTSTOCK` rail.
+        - `to_account_id` must be a USDC wallet on the `ETHEREUM` rail.
+        - `amount` is in major units as a string, with a minimum of `10`.
+
+        The flow is asynchronous. A successful response returns
+        `{ "status": "initiated" }`; the conversion completes later and a
+        `wallet.burn` webhook fires when it reaches a terminal status.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MintBurnRequest"
+      responses:
+        "200":
+          description: Burn initiated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintBurnResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ──────────────────────────────────────────────
+  # Withdrawals
+  # ──────────────────────────────────────────────
+  /api/wallets/crypto-withdraw:
+    post:
+      operationId: cryptoWithdraw
+      tags: [Withdrawals]
+      summary: Withdraw crypto
+      description: |
+        Withdraw crypto from a wallet to an external blockchain address.
+
+        `amount` is in major units as a string. The destination address must
+        be valid for the wallet's rail. A `wallet.crypto_withdrawal` webhook
+        fires when the withdrawal reaches a terminal status.
+      security:
+        - api_key: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CryptoWithdrawRequest"
+      responses:
+        "200":
+          description: Withdrawal initiated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CryptoWithdrawResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+# ──────────────────────────────────────────────
+# Webhooks
+# ──────────────────────────────────────────────
+webhooks:
+  walletRequestUpdate:
+    post:
+      tags: [Webhooks]
+      summary: Wallet request update
+      description: Sent when a wallet request reaches a terminal status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletRequestWebhook"
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  walletDepositUpdate:
+    post:
+      tags: [Webhooks]
+      summary: Wallet deposit update
+      description: Sent when a wallet deposit reaches a terminal status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletDepositWebhook"
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  walletMintUpdate:
+    post:
+      tags: [Webhooks]
+      summary: Wallet mint update
+      description: Sent when a mint flow reaches a terminal status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletMintWebhook"
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  walletBurnUpdate:
+    post:
+      tags: [Webhooks]
+      summary: Wallet burn update
+      description: Sent when a burn flow reaches a terminal status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletBurnWebhook"
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  walletCryptoWithdrawalUpdate:
+    post:
+      tags: [Webhooks]
+      summary: Wallet crypto withdrawal update
+      description: Sent when a crypto withdrawal reaches a terminal status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletCryptoWithdrawalWebhook"
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+# ──────────────────────────────────────────────
+# Components
+# ──────────────────────────────────────────────
+components:
+  securitySchemes:
+    api_key:
+      type: http
+      scheme: basic
+      description: |
+        API key authentication. Include your access token as:
+        `Authorization: Basic <ACCESS_TOKEN>`
+
+  parameters:
+    IdempotencyKeyRequired:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Unique key for idempotent write requests.
+
+  responses:
+    BadRequest:
+      description: Bad request — invalid parameters.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden — insufficient permissions or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    # ── Wallets ──
+    WalletRequest:
+      type: object
+      required: [company_id, currency]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that the wallet should be requested for.
+        currency:
+          type: string
+          description: Wallet currency, for example `USDB` or `USDC`.
+          example: USDB
+        rail:
+          type: string
+          nullable: true
+          description: |
+            Network rail. Required for crypto wallets, for example `ROOTSTOCK`
+            for USDb or `ETHEREUM` for USDC.
+          example: ROOTSTOCK
+
+    WalletRequestResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, in_progress, completed, rejected]
+
+    WalletListResponse:
+      type: object
+      properties:
+        wallets:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletSummary"
+
+    WalletSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          example: custodial_account_123
+        balance:
+          type: string
+          description: Wallet balance in major units.
+          example: "1250.00"
+        currency:
+          type: string
+          example: USDB
+        is_default:
+          type: boolean
+          description: Whether this wallet is the company's default payroll-funding wallet.
+        status:
+          type: string
+          enum: [pending, active, inactive]
+        is_available_for_payroll_funding:
+          type: boolean
+
+    WalletDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          example: custodial_account_123
+        balance:
+          type: string
+          description: Wallet balance in major units.
+          example: "1250.00"
+        currency:
+          type: string
+          example: USDB
+        rail:
+          type: string
+          example: ROOTSTOCK
+        status:
+          type: string
+          enum: [pending, active, inactive]
+
+    WalletTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletTransaction"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    WalletTransaction:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        account_id:
+          type: string
+        account_type:
+          type: string
+          nullable: true
+        created:
+          type: string
+          nullable: true
+        amount:
+          type: string
+          nullable: true
+          description: Amount in major units.
+        fee_amount:
+          type: string
+          nullable: true
+        fee_currency:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        type:
+          type: string
+          description: |
+            Transaction type, for example `mint_send`, `mint_deposit`,
+            `burn_send`, `burn_deposit`, `deposit`, or `withdrawal`.
+          example: mint_deposit
+        rail:
+          type: string
+          nullable: true
+        tx_hash:
+          type: string
+          nullable: true
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+
+    # ── Mint & Burn ──
+    MintBurnRequest:
+      type: object
+      required: [company_id, from_account_id, to_account_id, amount]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that owns both wallets.
+        from_account_id:
+          type: string
+          description: |
+            Source wallet ID. For mint, the USDC (Ethereum) wallet. For burn,
+            the USDb (Rootstock) wallet.
+        to_account_id:
+          type: string
+          description: |
+            Destination wallet ID. For mint, the USDb (Rootstock) wallet. For
+            burn, the USDC (Ethereum) wallet.
+        amount:
+          type: string
+          description: Amount in major units. Minimum `10`.
+          example: "100.00"
+
+    MintBurnResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [initiated]
+
+    # ── Withdrawals ──
+    CryptoWithdrawRequest:
+      type: object
+      required: [company_id, account_id, destination_address, amount]
+      properties:
+        company_id:
+          type: string
+          description: Company ID that owns the wallet.
+        account_id:
+          type: string
+          description: Wallet ID to withdraw from.
+        destination_address:
+          type: string
+          description: External blockchain address to send funds to.
+        amount:
+          type: string
+          description: Amount in major units.
+          example: "50.00"
+
+    CryptoWithdrawResponse:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        withdrawal_id:
+          type: string
+
+    # ── Webhooks ──
+    WalletWebhookBaseData:
+      type: object
+      properties:
+        company_id:
+          type: string
+        account_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+
+    WalletMintBurnWebhookData:
+      allOf:
+        - $ref: "#/components/schemas/WalletWebhookBaseData"
+        - type: object
+          required:
+            - send_transaction_id
+            - deposit_transaction_id
+            - from_wallet_id
+            - to_wallet_id
+            - from_currency
+            - to_currency
+            - amount
+          properties:
+            send_transaction_id:
+              type: string
+            deposit_transaction_id:
+              type: string
+            from_wallet_id:
+              type: string
+            to_wallet_id:
+              type: string
+            from_currency:
+              type: string
+              example: USDC
+            to_currency:
+              type: string
+              example: USDB
+            amount:
+              type: string
+            send_provider_transaction_id:
+              type: string
+            deposit_provider_transaction_id:
+              type: string
+            send_tx_hash:
+              type: string
+            deposit_tx_hash:
+              type: string
+
+    WalletRequestWebhookData:
+      allOf:
+        - $ref: "#/components/schemas/WalletWebhookBaseData"
+        - type: object
+          properties:
+            currency:
+              type: string
+            rail:
+              type: string
+
+    WalletDepositWebhookData:
+      allOf:
+        - $ref: "#/components/schemas/WalletWebhookBaseData"
+        - type: object
+          properties:
+            transaction_id:
+              type: string
+            currency:
+              type: string
+            amount:
+              type: string
+            rail:
+              type: string
+            tx_hash:
+              type: string
+              nullable: true
+
+    WalletCryptoWithdrawalWebhookData:
+      allOf:
+        - $ref: "#/components/schemas/WalletWebhookBaseData"
+        - type: object
+          properties:
+            transaction_id:
+              type: string
+            currency:
+              type: string
+            amount:
+              type: string
+            rail:
+              type: string
+            destination_address:
+              type: string
+            tx_hash:
+              type: string
+              nullable: true
+
+    WalletRequestWebhook:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [wallet.request]
+        data:
+          $ref: "#/components/schemas/WalletRequestWebhookData"
+
+    WalletDepositWebhook:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [wallet.deposit]
+        data:
+          $ref: "#/components/schemas/WalletDepositWebhookData"
+
+    WalletCryptoWithdrawalWebhook:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [wallet.crypto_withdrawal]
+        data:
+          $ref: "#/components/schemas/WalletCryptoWithdrawalWebhookData"
+
+    WalletMintWebhook:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [wallet.mint]
+        data:
+          $ref: "#/components/schemas/WalletMintBurnWebhookData"
+
+    WalletBurnWebhook:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: string
+          enum: [wallet.burn]
+        data:
+          $ref: "#/components/schemas/WalletMintBurnWebhookData"
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
