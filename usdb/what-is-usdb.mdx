@@ -1,0 +1,54 @@
+---
+title: "What is USDb?"
+description: USDb is a USD-pegged stablecoin for businesses, issued on Rootstock.
+---
+
+USDb is a USD-pegged stablecoin built for businesses, issued on the
+[Rootstock](https://rootstock.io) Bitcoin sidechain and backed 1:1 by US
+dollar reserves. It's designed to move value inside enterprise financial
+workflows — payouts, payroll, and treasury — rather than to trade.
+
+## At a glance
+
+| Property | Value |
+|---|---|
+| Name | `Bitcoin USD` |
+| Symbol | `USDB` |
+| Decimals | `6` |
+| Network | Rootstock (RSK) |
+| Backing | 1:1 US dollar reserves |
+| Standard | ERC-20 (with [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) `permit`) |
+
+## How it stays stable
+
+Each unit of USDb is backed 1:1 by US dollar reserves, so one USDb is always
+redeemable for one US dollar of value. The peg is maintained by minting USDb
+only when reserves are added and removing it from circulation when redeemed.
+
+## Funding model
+
+Through the USDb API, **USD is the settlement asset**: minting converts a
+company's USD into USDb, and burning converts USDb back into USD. Bitwage
+custodies the wallets that hold both balances and sponsors the network fees
+for USDb transfers, so you interact with simple API calls rather than managing
+keys or gas.
+
+## Where USDb lives
+
+USDb is an ERC-20 token on Rootstock. To verify balances on-chain, receive
+USDb to an external wallet, or connect your own tooling, see the token contract
+and network details on [Contract addresses](/usdb/contract-addresses).
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="Contract addresses" icon="file-contract" href="/usdb/contract-addresses">
+    Token addresses and Rootstock network details.
+  </Card>
+  <Card title="Mint and burn" icon="arrow-right-arrow-left" href="/usdb/mint-and-burn">
+    Convert between USD and USDb.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/usdb/quickstart">
+    Mint your first USDb in a few API calls.
+  </Card>
+</CardGroup>

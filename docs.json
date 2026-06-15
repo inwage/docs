@@ -62,8 +62,14 @@
           {
             "tab": "Assets",
             "pages": [
-              "usdb/concepts",
-              "usdb/contract-addresses"
+              "usdb/assets-overview",
+              {
+                "group": "USDb",
+                "pages": [
+                  "usdb/what-is-usdb",
+                  "usdb/contract-addresses"
+                ]
+              }
             ]
           },
           {
@@ -75,7 +81,8 @@
           {
             "tab": "Mint & Burn",
             "pages": [
-              "usdb/mint-and-burn"
+              "usdb/mint-and-burn",
+              "usdb/concepts"
             ]
           },
           {
