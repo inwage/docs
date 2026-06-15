@@ -81,8 +81,7 @@
           {
             "tab": "Mint & Burn",
             "pages": [
-              "usdb/mint-and-burn",
-              "usdb/concepts"
+              "usdb/mint-and-burn"
             ]
           },
           {

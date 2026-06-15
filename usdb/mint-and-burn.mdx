@@ -9,16 +9,22 @@ company's own wallets.
 
 ## Before you start
 
-The company must be [eligible](/usdb/concepts#eligibility): full KYC, plus
-active USD and USDb (Rootstock) wallets. You will need the
-`id` of both wallets, which you can get from
+Before a company can mint or burn, it must:
+
+- Have completed full KYC.
+- Have an **active** USD wallet.
+- Have an **active** USDb wallet on the `ROOTSTOCK` rail.
+
+If any requirement is missing, mint and burn requests are rejected. You will
+need the `id` of both wallets, which you can get from
 [List wallets](/usdb/balance-accounts#list-wallets).
 
 All mint and burn requests:
 
 - Use **API key authentication** only.
 - Require an `Idempotency-Key` header.
-- Take an `amount` in major units (string), with a minimum of `10`.
+- Take an `amount` in **major units** as a string (for example `"100.00"`),
+  with a minimum of `10`.
 
 ## Mint USDb
 
@@ -76,10 +82,19 @@ curl -X POST "https://api.sandbox.bitwage.com/api/wallets/burn" \
 
 ## What happens next
 
-A `status` of `initiated` means the conversion was accepted and is settling
-in the background. When it finishes, Bitwage sends a
-[`wallet.mint` or `wallet.burn` webhook](/usdb/webhooks) with the final
-status and the underlying transaction details.
+Mint and burn requests are processed **asynchronously**. The API acknowledges
+the request immediately, then settles the conversion in the background. A
+`status` of `initiated` means the conversion was accepted and is settling. When
+it finishes, Bitwage sends a
+[`wallet.mint` or `wallet.burn` webhook](/usdb/webhooks) with the final status
+and the underlying transaction details.
+
+<Note>
+A successful mint or burn response only confirms that the request was
+**accepted**, not that funds have moved. Wait for the corresponding
+`wallet.mint` or `wallet.burn` webhook before treating a conversion as
+complete, rather than polling.
+</Note>
 
 <Warning>
 Do not retry a mint or burn with a new idempotency key just because the

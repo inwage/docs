@@ -3,11 +3,23 @@ title: Wallets
 description: Request wallets, check balances, view transactions, and withdraw crypto.
 ---
 
-A wallet (balance account) holds a single currency on a single rail. Use these
-endpoints to provision wallets, inspect balances and history, and withdraw
-crypto to an external address.
+A wallet (also called a balance account) holds a single currency. Crypto
+wallets also have a network rail. Use these endpoints to provision wallets,
+inspect balances and history, and withdraw crypto to an external address.
 
 All wallet endpoints use **API key authentication** only.
+
+## Wallets and rails
+
+For USDb flows, a company uses two wallets:
+
+| Currency | Rail | Used for |
+|---|---|---|
+| `USD` | — | The settlement asset you mint from and burn to. |
+| `USDB` | `ROOTSTOCK` | The stablecoin you mint to and burn from. |
+
+A crypto wallet requires a `rail`, so request the USDb wallet on `ROOTSTOCK`.
+A `USD` wallet is a fiat balance account and takes no rail.
 
 ## Request a wallet
 
