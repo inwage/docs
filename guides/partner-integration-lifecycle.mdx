@@ -1,0 +1,222 @@
+---
+title: Integration lifecycle
+description: The endpoints you call, in order, to onboard companies, add recipients, and pay them.
+---
+
+This guide walks through a typical partner integration, step by step. It covers
+two tracks that share the same payment endpoints:
+
+- **Track A, your own company.** You pay your own contractors or employees.
+- **Track B, client companies.** Companies you onboard pay their own recipients.
+
+Every request needs [authentication](/guides/authentication). Your API key
+needs the permission group listed for each endpoint. Write permission
+includes read for the same group. See [Errors](/guides/errors) for what each
+endpoint returns when something goes wrong.
+
+| Step | Track A | Track B |
+|---|---|---|
+| 1. Company | Use your existing company. | [Onboard each client company](#1-onboard-a-client-company). |
+| 2. Recipients | [Create and verify recipients](#2-create-and-verify-recipients). | [Create and verify recipients](#2-create-and-verify-recipients) under each client company. |
+| 3. Distributions | [Add payment destinations](#3-add-payment-destinations). | [Add payment destinations](#3-add-payment-destinations). |
+| 4. Payroll | [Pay them](#4-pay-recipients). | [Pay them](#4-pay-recipients). |
+| 5. Track | [Follow the payroll](#5-track-the-payroll). | [Follow the payroll](#5-track-the-payroll). |
+
+In every path or body, `company_id` is the company that pays: yours in Track A,
+the client's in Track B.
+
+## 1. Onboard a client company
+
+Track B only. A company you create is linked to your partner account. You
+receive its webhooks and can act on it with your API key.
+
+| Method and path | Permission | Idempotent | Purpose |
+|---|---|---|---|
+| [`POST /api/companies`](/api-reference/companies/create-company) | `onboarding.write` | Yes | Create the company. |
+| [`POST /api/companies/{company_id}/ubo`](/api-reference/companies/create-ubo-admin) | `onboarding.write` | Yes | Create the beneficial owner who administers the company. |
+| [`POST /api/companies/{company_id}/ubo/kyc`](/api-reference/companies/submit-ubo-kyc) | `onboarding.write` | Yes | Submit the owner's identity details for verification. |
+| [`POST /api/companies/{company_id}/documents`](/api-reference/companies/upload-company-documents) | `onboarding.write` | Yes | Upload the company's KYB documents. |
+| [`POST /api/companies/{company_id}/kyb`](/api-reference/companies/submit-company-kyb) | `onboarding.write` | Yes | Submit the company for verification. |
+| [`GET /api/companies/{company_id}/kyb`](/api-reference/companies/get-kyb-status) | `onboarding.read` | n/a | Read the KYB status: `draft`, `pending_kyb`, `submitted`, `pending_review`, `approved`, or `rejected`. |
+| [`GET /api/company`](/api-reference/companies/get-company-details) | `onboarding.read` | n/a | Read the company profile. |
+
+Wait for `approved` before you create payrolls. You also receive a
+`company.kyc_status_update` webhook when the status changes.
+
+## 2. Create and verify recipients
+
+A recipient is someone the company pays: a contractor, an employee, or a
+vendor. You collect their details and documents, then send them through the
+API. Bitwage does not email the recipient, and they never sign in.
+
+Do this in order. The `recipient_id` from the create response is the `user_id`
+you send to the user endpoints.
+
+| Method and path | Permission | Idempotent | Purpose |
+|---|---|---|---|
+| [`POST /api/company/{company_id}/recipients/create`](/api-reference/company-recipients/create-recipient) | `onboarding.write` | Yes | Create the person and link them to the paying company. |
+| [`POST /api/user/document/upload`](/api-reference/user-documents/upload-user-document) | `onboarding.write` | No | Upload an identity document, or set a tax ID. |
+| [`GET /api/user/document/list`](/api-reference/user-documents/list-user-documents) | `onboarding.read` | n/a | Confirm which documents are stored. |
+| [`POST /api/user/update`](/api-reference/users/update-user) | `onboarding.write` | No | Correct profile fields after creation. |
+| [`POST /api/user/kyc-initiate`](/api-reference/users/initiate-user-kyc) | `onboarding.write` | No | Start identity verification. |
+| [`GET /api/user/detail`](/api-reference/users/get-user-details) | `onboarding.read` | n/a | Read `kyc_verification_status`. |
+| [`GET /api/company/recipients`](/api-reference/company-recipients/list-company-recipients) | `onboarding.read` | n/a | List recipients of a company. |
+
+### Create the recipient
+
+Send `recipient_type` of `contractor` or `employee`, and a `worker` object with
+their name, email, phone, date of birth, and address. Set `external_id` to
+your own ID for them. It must be unique within the company. A duplicate
+returns `recipient-external-id-already-used`.
+
+```json
+{
+  "recipient_type": "contractor",
+  "external_id": "contractor-1042",
+  "worker": {
+    "email": "ada@example.com",
+    "phone_number": "+1 650 490 4392",
+    "phone_country": "US",
+    "first_name": "Ada",
+    "last_name": "Lovelace",
+    "date_of_birth": "1990-12-10",
+    "street_address": "1 Market St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zip": "94105",
+    "country": "US"
+  }
+}
+```
+
+The response `recipient_id` is the user you upload documents for. Keep it.
+
+Create each person with this endpoint. `POST /api/user/create` makes a user
+who is not linked to a company, and a later `recipients/create` with the same
+email fails with `recipient-worker-email-already-exists`.
+
+For a vendor, send `recipient_type` `vendor` and a `vendor` object instead of
+`worker`. The returned `recipient_id` is a company ID.
+
+### Upload documents
+
+Call `POST /api/user/document/upload` once per document, with `user_id` set to
+the `recipient_id`.
+
+| `doc_type` | What to send |
+|---|---|
+| `passport` | `category` `front`, `issuing_country`, and `base64_image`. |
+| `drivers_license`, `national_id` | The same, once for `front` and once for `back`. |
+| `proof_of_address`, `selfie` | `category` `front`, `issuing_country`, and `base64_image`. |
+| `tax_id` | `tax_id` and `tax_id_type` (`passport`, `drivers_license`, or `national_id`). No image. |
+
+A failed image upload returns `user_update_advanced_data_failed`. These
+endpoints, along with `POST /api/user/update` and `POST /api/user/kyc-initiate`,
+use the [legacy error body](/guides/errors#legacy-error-body) and do not take
+an idempotency key. Check `GET /api/user/document/list` before you upload the
+same document again.
+
+### Start verification
+
+After the documents are uploaded, call `POST /api/user/kyc-initiate` with the
+`user_id`. Bitwage sends `user.kyc_status_update` when the status changes. You
+can also read `kyc_verification_status` from `GET /api/user/detail`. It is
+`pending`, `approved`, `rejected`, `unapproved`, or `neutral` (manual review).
+
+Some paying companies require every recipient to be `approved` before a
+payroll is accepted. In that case payroll creation returns a `422` saying the
+recipients must have approved KYC.
+
+## 3. Add payment destinations
+
+A distribution is where a recipient is paid: a crypto address or a bank
+account. A recipient can have several, and each payment is split across them by
+percentage (the allocation).
+
+| Method and path | Permission | Idempotent | Purpose |
+|---|---|---|---|
+| [`GET /api/user/distribution/fields`](/api-reference/user-distributions/get-distribution-fields) | `distributions.read` | n/a | Get the fields a bank account needs for the recipient's country and a currency. |
+| [`POST /api/company/{company_id}/recipients/{recipient_id}/distribution`](/api-reference/company-recipients/create-recipient-distribution) | `distributions.write` | Yes | Create a distribution. |
+| [`PATCH /api/company/{company_id}/recipients/{recipient_id}/distribution/allocations`](/api-reference/company-recipients/set-recipient-distribution-allocations) | `distributions.write` | No | Set the allocation of each distribution, up to three. |
+| [`DELETE /api/company/{company_id}/recipients/{recipient_id}/distribution`](/api-reference/company-recipients/delete-recipient-distribution) | `distributions.write` | No | Delete a distribution. Set its allocation to `0` first. |
+
+1. For a bank account, call `GET /api/user/distribution/fields` and send exactly
+   those fields in `distribution_data`.
+2. Create the distribution. The response includes its current `allocation`.
+3. Call the allocations endpoint so the allocations of the recipient's
+   distributions add up to `100`.
+
+## 4. Pay recipients
+
+| Method and path | Permission | Idempotent | Purpose |
+|---|---|---|---|
+| [`GET /api/company/payroll/fees`](/api-reference/company-payroll/get-estimated-payroll-fees) | `payroll.read` | n/a | Estimate fees before you commit. |
+| [`POST /api/company/payroll/create`](/api-reference/company-payroll/create-payroll) | `payroll.write` | **Required** with API key auth | Create the payroll. `POST /api/company/workers/pay` is an alias. |
+| [`POST /api/company/payroll/quote/refresh`](/api-reference/company-payroll/refresh-payroll-quotes) | `payroll.write` | No | Refresh an expired crypto funding quote. |
+
+1. Optionally estimate fees. For a balance account funding method, pass the
+   returned quote `id` as `quote_id` when you create the payroll to lock the rate.
+2. Create the payroll with a `to_pay` item for each recipient. Each item has
+   either `user_id` or `company_id`.
+3. Always send `funding_method` and an `external_id`. Partners can't set a
+   company default, so a request that omits `funding_method` fails with a `422`.
+4. Keep the `payroll_id` from the response. This response is the only
+   creation signal. There is no creation webhook.
+5. Fund the payroll as the funding method describes. If a crypto quote expires
+   first, refresh it.
+
+```bash
+curl -X POST "https://api.sandbox.bitwage.com/api/company/payroll/create" \
+  -H "Authorization: Basic YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: 2a9c3f0e-8d7b-4c58-bb0e-0a1f5f2d4a90" \
+  -d '{
+    "company_id": "2693034771782348",
+    "funding_method": "wire",
+    "currency": "USD",
+    "external_id": "payroll-2026-11",
+    "to_pay": [
+      { "user_id": "1234567890", "amount_fiat": 500 }
+    ]
+  }'
+```
+
+### Pay vendors
+
+Vendor payments use quotes, invoice uploads, and a separate create call.
+
+| Method and path | Permission | Idempotent | Purpose |
+|---|---|---|---|
+| [`POST /api/vendor/payroll/quotes`](/api-reference/company-payroll/create-vendor-payroll-quotes) | `vendor_payments.write` | Yes | Lock FX quotes for each vendor payment. |
+| [`POST /api/vendor/payroll/documents`](/api-reference/company-payroll/create-vendor-payroll-document-upload) | `vendor_payments.write` | Yes | Get an upload URL for a vendor invoice. |
+| [`POST /api/vendor/payroll`](/api-reference/company-payroll/create-vendor-payroll) | `vendor_payments.write` | Yes | Create the vendor payroll. |
+
+These endpoints support API key authentication only.
+
+## 5. Track the payroll
+
+You can follow a payroll by webhook, by polling, or both.
+
+| Method and path | Permission | Purpose |
+|---|---|---|
+| [`GET /api/company/{company_id}/payrolls`](/api-reference/company-payroll/list-payrolls) | `payroll.read` | List a company's payrolls. Filter with `external_id`. |
+| [`GET /api/company/{company_id}/payrolls/{payroll_id}`](/api-reference/company-payroll/get-payroll) | `payroll.read` | Read a payroll's status and every payment in it. |
+
+| Webhook | Meaning |
+|---|---|
+| `company.payroll_status` | The payroll changed status: `created`, `received`, `processing`, `fulfilled`, or `canceled`. |
+| `user.payment_status_update` | One payment changed status. Includes `released` and the payout details. |
+
+Webhooks are sent once and aren't retried. Use them for speed and the GET
+endpoints as the source of truth. See [Webhooks](/guides/webhooks) for the
+payloads, ordering, and signature validation.
+
+## Production checklist
+
+- Send an `Idempotency-Key` on every endpoint marked **Yes** or **Required**.
+  See [Idempotency](/guides/idempotency).
+- Store `payroll_id`, your `external_id`, and each `subpayroll_id`.
+- Branch on the error `code`, not on `message`. See [Errors](/guides/errors).
+- Verify the `x-bitwage-signature` header on every webhook.
+- Reconcile open payrolls with `GET /api/company/{company_id}/payrolls` on a
+  schedule, in case a webhook was missed.

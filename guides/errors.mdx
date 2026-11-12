@@ -1,0 +1,215 @@
+---
+title: Errors
+description: Error response format, error codes, and how to handle and retry failures in the Partner API.
+---
+
+Every failed request returns a non-`2xx` status and a JSON body. Use the
+`code` field to decide what to do. Treat `message` as English fallback text
+that can change.
+
+## Error response format
+
+Most Partner API endpoints return this body:
+
+```json
+{
+  "request_id": "5f1d1c2e-4f0a-4b53-9d0e-6d0f6f8f2a11",
+  "message": "A user with this email already exists.",
+  "code": "recipient-worker-email-already-exists",
+  "data": {
+    "retryable": false
+  }
+}
+```
+
+| Field | Present | Description |
+|---|---|---|
+| `request_id` | Always | Unique ID for the request. Include it when you contact support. |
+| `message` | Always | Human-readable description in English. |
+| `code` | Usually | Stable, kebab-case identifier for the condition. Branch on this. |
+| `data` | `400`, `403`, `404`, `409` | Extra fields. Most `400` errors include `data.retryable`. |
+| `schema` | `422` only | The full validation error tree, keyed by field name. |
+
+`code` is omitted when a response has no stable code, for example most `422`
+validation errors. Codes are a public contract. Bitwage can add new codes, so
+handle unknown codes with your generic error path.
+
+### Legacy error body
+
+Some older endpoints return a simpler body without `request_id` or `code`:
+
+```json
+{
+  "error": "Invalid payer_type"
+}
+```
+
+These endpoints return it with HTTP `400`:
+
+- `POST /api/user/create`
+- `POST /api/user/update`
+- `POST /api/user/payer/create`, `/update` and `/delete`
+- `POST /api/user/kyc-initiate`
+
+A few also return a plain string or a raw `{field: [messages]}` object. Read
+the body defensively: look for `message`, then `error`, then the raw body.
+
+## HTTP status codes
+
+| Status | Meaning | Retry? |
+|---|---|---|
+| `200` | Success. | N/A |
+| `400` | The request is understood but a business rule rejects it. Check `code` and `data.retryable`. | Only if `data.retryable` is `true`. |
+| `403` | Authentication failed, the key lacks permission, or you don't own the resource. Authentication errors are `403`, not `401`. | No. Fix credentials or permissions. |
+| `404` | The resource does not exist for your account. | No. |
+| `409` | The resource is in an incompatible state, for example it already exists. | No. |
+| `422` | The request body or query failed validation. See `schema`. | No. Fix the request. |
+| `500` | Unexpected error on Bitwage's side. | Yes, with the same `Idempotency-Key`. Contact support with `request_id` if it persists. |
+| `502` | A downstream provider failed. | Yes, with the same `Idempotency-Key`. |
+
+For `500` and `502`, the body contains a generic message that includes the
+`request_id`. It does not include a `code` you can branch on beyond
+`unexpected-error`.
+
+## Validation errors (422)
+
+A `422` response puts every failing field under `schema`. `message` is the
+first error in that tree.
+
+```json
+{
+  "request_id": "5f1d1c2e-4f0a-4b53-9d0e-6d0f6f8f2a11",
+  "message": "Total amount of payroll must be greater than 10",
+  "schema": {
+    "payments": ["Total amount of payroll must be greater than 10"]
+  }
+}
+```
+
+Nested fields are nested in the tree. For example, a bad `worker.email` on
+`POST /api/company/{company_id}/recipients/create` is reported under
+`schema.worker.email`.
+
+## Authentication and permission errors
+
+All return `403`.
+
+| Code | Cause | What to do |
+|---|---|---|
+| `no-authorization-header` | No `Authorization` header. | Send `Authorization: Basic <API_KEY>` or `Bearer <TOKEN>`. |
+| `invalid-authorization-header-format` | Header isn't exactly two parts. | Use `Basic <API_KEY>` or `Bearer <TOKEN>`. |
+| `invalid-authorization-header-type` | Scheme is neither `Basic` nor `Bearer`. | Use `Basic` or `Bearer`. |
+| `invalid-api-key` | The API key is unknown, deleted, or belongs to a suspended or expired partner. **Also returned when a `company_id` or `user_id` in the request does not belong to your partner account.** | Check the key first, then check the ID is one you created or your own company. |
+| `permission-denied` | An OAuth token is used with a `company_id` other than the one the token was issued for. | Use the token for that company. |
+| `partner-permission-denied` | Your partner account lacks the permission group the route needs. `data.required_permission_group` names it, for example `payroll.write`. | Ask Bitwage to enable the group. |
+| `partner-not-found` | The OAuth app owner is not an active partner. | Contact support. |
+| `partner-company-not-found` | `company_id` in the URL is not your own company or a company you created. | Use a company ID from `POST /api/companies` or your own. |
+
+<Note>
+  With API key authentication, a `company_id` or `user_id` in the query string
+  or JSON body that you do not own produces `invalid-api-key`, not a
+  `404`. If a known-good key suddenly fails on one request, check the IDs.
+  IDs in the URL path return `partner-company-not-found` instead.
+</Note>
+
+## Idempotency errors
+
+See the [Idempotency guide](/guides/idempotency).
+
+| Code | Status | Cause |
+|---|---|---|
+| `idempotency-key-required` | `400` | The endpoint requires an `Idempotency-Key` header and none was sent. |
+| `idempotency-key-reused-with-different-payload` | `400` | The key was already used on this endpoint with a different body. Use a new key for a new request. |
+
+Only successful responses are stored against a key. If a request fails, retry
+it with the same key and it runs again.
+
+## Errors by lifecycle step
+
+### Company onboarding
+
+| Endpoint | Code | Status | Meaning |
+|---|---|---|---|
+| `POST /api/companies/{company_id}/ubo` | `company-ubo-admin-already-exists` | `400` | The company already has a UBO admin. |
+| `POST /api/companies/{company_id}/ubo/kyc` | `company-ubo-admin-not-found` | `400` | Create the UBO admin first. |
+| `POST /api/companies/{company_id}/ubo/kyc` | `ubo-kyc-submit-failed` | `400` | The identity provider rejected the submission. `data.retryable` is `true`. |
+| `POST /api/companies/{company_id}/documents` | `invalid-target-type` | `400` | `target_type` is not supported. |
+| `POST /api/companies/{company_id}/documents` | `company-ubo-admin-not-found` | `400` | Create the UBO admin before uploading UBO documents. |
+| `POST /api/companies/{company_id}/documents` | `user_update_advanced_data_failed` | `400` | The document upload could not be saved. |
+| `POST /api/companies/{company_id}/documents` | `document-request-not-found`, `document-request-company-mismatch`, `document-request-already-answered` | `400` | The referenced document request is missing, belongs to another company, or is already answered. |
+| `POST /api/companies/{company_id}/kyb` | `company-kyb-requirements-missing` | `400` | Something is still outstanding. `data.requirements.outstanding` lists what: `business_profile`, `ubo_admin`, `ubo_beneficial_owner`, `ubo_kyc`, `ubo_documents`. |
+| `POST /api/companies/{company_id}/kyb` | `kyb-provider-submit-failed` | `400` | The provider call failed. `data.retryable` is `true`. |
+| All of the above | `partner-company-not-found` | `403` | You don't own `company_id`. |
+
+### Recipients (contractors, employees, vendors)
+
+| Endpoint | Code | Status | Meaning |
+|---|---|---|---|
+| `POST /api/company/{company_id}/recipients/create` | `recipient-worker-email-already-exists` | `400` | A Bitwage user with this email already exists. A no-login worker can only be created for a new email. |
+| `POST /api/company/{company_id}/recipients/create` | `recipient-external-id-already-used` | `400` | Another recipient in this company already uses this `external_id`. |
+| `POST /api/company/{company_id}/recipients/create` | `recipient-already-linked-with-different-role` | `400` | The recipient is already linked with another role. `data.existing_role` shows it. |
+| `POST /api/company/{company_id}/recipients/create` | `recipient-vendor-already-exists` | `400` | A company with the same tax details, legal name, or email exists. `data.company_id` is the existing one. |
+| `POST /api/company/workers/invite` | `company-admin-not-found` | `400` | No active admin to send the invitation from. |
+| `POST /api/company/worker/invite/resend` | none | `422` | The invitation wasn't found, was already accepted, or was already sent three times. |
+| Recipient distribution routes | `recipient-not-found` | `400` | `recipient_id` is not a worker or vendor of this company. |
+
+### Distributions
+
+| Endpoint | Code | Status | Meaning |
+|---|---|---|---|
+| Recipient distribution routes | `distribution_not_found` | `400` | The distribution doesn't exist or was deleted. |
+| Recipient distribution routes | `distribution-ownership-mismatch` | `400` | The distribution belongs to a different recipient. |
+| `DELETE .../distribution` | `delete_distribution_error` | `400` | The distribution can't be deleted. |
+| `DELETE .../distribution` | none | `422` | `Allocation must be 0 before deleting`. Set allocation to `0` with `PATCH .../distribution/allocations` first. |
+| `PATCH .../distribution/allocations` | none | `422` | `Total allocation must equal 100`, or `Duplicate distribution IDs are not allowed`. |
+| Vendor recipients (create, delete, or change allocations) | `payer-cannot-manage-vendor-allocations` | `403` | Only the vendor can manage its receiving accounts. A payer can't. |
+
+### Payroll
+
+`POST /api/company/payroll/create` validates the whole request and returns
+`422` with the failing field under `schema`. These are the messages you can
+expect. They don't have a `code`; match on the field and handle unknown
+messages generically.
+
+| Field | Message | Fix |
+|---|---|---|
+| `company_id` | `Company not found.` | Use a company you own. |
+| `funding_method` | `Company does not have a default funding method set.` | Send `funding_method` explicitly. Partners can't set a company default. |
+| `funding_method` | `Crypto OTC is not supported for API payroll creation.` | Use another method. |
+| `funding_method` | `Bank type is required for internal payrolls.` | Send `funding_method`. |
+| `funding_method` | `Unsupported funding method`, `Unsupported payroll currency`, `Unsupported funding method for payroll currency` | Choose a method that supports the payroll `currency`. |
+| `funding_method` | `Credit card funding is temporarily unavailable.` | Use another method. |
+| `funding_method` | `ACH Debit funding is revoked.`, `ACH Debit funding is over the limit.`, `Connect and verify an ACH debit funding bank first.` | Resolve the company's ACH debit setup or choose another method. |
+| `funding_currency` | `Funding currency is required for crypto funding.`, `Invalid funding currency for crypto tx`, `Funding currency must match payroll currency for balance account funding.` | Send a valid `funding_currency`. |
+| `quote_id` | `quote_id is only supported for balance account funding.` | Remove `quote_id`. |
+| `external_id` | `A payroll with this external_id already exists.` | `external_id` is unique across payrolls. Use a new one, or look the payroll up with `GET /api/company/{company_id}/payrolls?external_id=`. |
+| `currency` | One of the supported payroll currencies. | Fix `currency`. |
+| `payments` | `Invalid to_pay amount_fiat value. Value cannot be 0.` | Remove or fix the item. |
+| `payments` | `Either user_id or company_id are required for each object in payments.`, `Only one of user_id or company_id is allowed for each object in payments.` | Send exactly one of `user_id` or `company_id` per item. |
+| `payments` | `User does not exist`, `company does not exist` | Check the recipient ID. |
+| `payments` | `user <id> is not associated with company <id>`, `Company <id> is not associated with company <id>` | Create the recipient on the paying company first. |
+| `payments` | `Employee <id> missing distribution with allocation`, `company <id> missing wallet and distribution` | Create a distribution with a non-zero allocation for the recipient. |
+| `payments` | `User <id> is blocked`, `Company <id> is locked` | Contact support. |
+| `payments` | `All user recipients must have approved KYC status for this business payroll`, `All business recipients must have approved KYB status for this business payroll` | The paying company requires approved recipients. |
+| `payments` | `Total amount of payroll must be greater than 10` | The payroll total is below the USD 10 minimum. |
+
+### Payroll status
+
+| Endpoint | Code | Status | Meaning |
+|---|---|---|---|
+| `GET /api/company/{company_id}/payrolls/{payroll_id}` | `payroll-not-found` | `404` | The payroll doesn't exist or belongs to a different company. |
+| `GET /api/company/{company_id}/payrolls` | none | `422` | `per_page` is above 100, or a parameter is invalid. |
+| Both | `partner-company-not-found` | `403` | You don't own `company_id`. |
+| Both | `partner-permission-denied` | `403` | Needs the `payroll.read` or `payroll.write` permission group. |
+
+## Retrying safely
+
+1. **Check `data.retryable`.** `false` means the same request will fail the same
+   way. `true` means a provider failed and a retry can succeed.
+2. **Reuse the `Idempotency-Key`** on every retry of a write request. If the
+   first attempt did succeed but you never got the response, you get the
+   stored response back and no second side effect.
+3. **Back off on `500` and `502`.** Wait and retry a few times, then contact
+   support with the `request_id`.
+4. **Don't retry `4xx` responses** other than a `400` with `data.retryable: true`.
+   Fix the request instead.

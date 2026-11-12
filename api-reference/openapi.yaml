@@ -463,6 +463,10 @@ paths:
                     type: array
                     items:
                       type: object
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/user/distribution:
     post:
@@ -675,6 +679,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CompanyCreateResponse"
+        "400":
+          description: |
+            A business rule rejected the request. Codes: `idempotency-key-required`,
+            `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company:
     get:
@@ -696,6 +712,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CompanyDetailResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/companies/{company_id}/ubo:
     post:
@@ -724,6 +744,18 @@ paths:
                     type: string
                   status:
                     type: string
+        "400":
+          description: |
+            Codes: `company-ubo-admin-already-exists`, `idempotency-key-required`,
+            `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/companies/{company_id}/ubo/kyc:
     post:
@@ -757,6 +789,18 @@ paths:
                     type: string
                   kyc_status:
                     type: string
+        "400":
+          description: |
+            Codes: `company-ubo-admin-not-found`, `ubo-kyc-submit-failed` (retryable),
+            `idempotency-key-required`, `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/companies/{company_id}/documents:
     post:
@@ -783,6 +827,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CompanyDocumentUploadResponse"
+        "400":
+          description: |
+            Codes: `invalid-target-type`, `company-ubo-admin-not-found`,
+            `user_update_advanced_data_failed`, `document-request-not-found`,
+            `document-request-company-mismatch`, `document-request-already-answered`,
+            `idempotency-key-required`, `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/companies/{company_id}/kyb:
     post:
@@ -811,6 +869,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CompanyKybResponse"
+        "400":
+          description: |
+            Codes: `company-kyb-requirements-missing` (`data.requirements.outstanding`
+            lists what is missing), `kyb-provider-submit-failed` (retryable),
+            `idempotency-key-required`, `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
     get:
       operationId: getCompanyKybStatus
       tags: [Companies]
@@ -825,6 +896,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CompanyKybResponse"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   # ──────────────────────────────────────────────
   # Company Workers
@@ -869,6 +942,10 @@ paths:
                       $ref: "#/components/schemas/Worker"
                   meta:
                     $ref: "#/components/schemas/Pagination"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company/workers/invite:
     post:
@@ -911,6 +988,17 @@ paths:
                   status:
                     type: string
                     example: success
+        "400":
+          description: |
+            Codes: `company-admin-not-found`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company/worker/invite/resend:
     post:
@@ -942,6 +1030,10 @@ paths:
                   status:
                     type: string
                     example: success
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company/worker/invitations:
     get:
@@ -967,6 +1059,10 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/WorkerInvitation"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   # ──────────────────────────────────────────────
   # Company Recipients
@@ -1043,6 +1139,10 @@ paths:
                     oneOf:
                       - $ref: "#/components/schemas/Pagination"
                       - type: "null"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company/{company_id}/recipients/create:
     post:
@@ -1050,8 +1150,10 @@ paths:
       tags: [Company Recipients]
       summary: Create recipient
       description: |
-        Create and link a no-login company recipient (worker).
-        Provide a `worker` payload with the recipient's personal details.
+        Create and link a no-login company recipient: a contractor, an employee,
+        or a vendor. Provide `worker` for `contractor` or `employee`, or `vendor`
+        for `vendor`. The recipient is created under your partner account, which is
+        how their payment webhooks are routed to you. Supports idempotency.
       parameters:
         - $ref: "#/components/parameters/CompanyIdPath"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -1068,6 +1170,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecipientCreateResponse"
+        "400":
+          description: |
+            Codes: `recipient-worker-email-already-exists`, `recipient-external-id-already-used`,
+            `recipient-already-linked-with-different-role`, `recipient-vendor-already-exists`,
+            `idempotency-key-required`, `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company/{company_id}/recipients/{recipient_id}/distribution:
     post:
@@ -1092,6 +1207,18 @@ paths:
             application/json:
               schema:
                 type: object
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `idempotency-key-required`,
+            `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
     delete:
       operationId: deleteRecipientDistribution
       tags: [Company Recipients]
@@ -1117,6 +1244,18 @@ paths:
             application/json:
               schema:
                 type: object
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `distribution_not_found`,
+            `distribution-ownership-mismatch`, `delete_distribution_error`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/company/{company_id}/recipients/{recipient_id}/distribution/allocations:
     patch:
@@ -1150,6 +1289,17 @@ paths:
             application/json:
               schema:
                 type: object
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `distribution_not_found`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   # ──────────────────────────────────────────────
   # Company Payroll
@@ -1160,8 +1310,21 @@ paths:
       tags: [Company Payroll]
       summary: Create payroll
       description: |
-        Create a payroll to pay company workers. When using API key
-        authentication, an `Idempotency-Key` header is required.
+        Create a payroll to pay company workers or vendors. This call creates the
+        payroll and returns its `payroll_id`, fees, and, for crypto funding, a
+        funding quote. It is the only moment a payroll is "created": Bitwage does
+        not send a webhook for creation.
+
+        Track the payroll afterwards with the
+        [`company.payroll_status` and `user.payment_status_update` webhooks](/guides/webhooks)
+        or by polling [`GET /api/company/{company_id}/payrolls/{payroll_id}`](/api-reference/company-payroll/get-payroll).
+
+        - Send `to_pay` with one item per recipient. Each item has exactly one of
+          `user_id` or `company_id`.
+        - Send `funding_method` explicitly. Partners can't set a company default.
+        - `external_id` must be unique across payrolls.
+        - When using API key authentication, an `Idempotency-Key` header is required.
+          `POST /api/company/workers/pay` is an alias of this route.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -1177,6 +1340,172 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PayrollCreateResponse"
+        "400":
+          description: |
+            Codes: `idempotency-key-required` (API key auth),
+            `idempotency-key-reused-with-different-payload`. Payroll validation failures
+            are `422`. See the [Errors guide](/guides/errors#payroll).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /api/company/payroll/fees:
+    get:
+      operationId: getPayrollFees
+      tags: [Company Payroll]
+      summary: Get estimated payroll fees
+      description: |
+        Estimate fees for a payroll before you create it. When the funding is a
+        balance account, a `quote` is returned. Pass its `id` as `quote_id` to
+        [Create payroll](/api-reference/company-payroll/create-payroll) to lock
+        the rate and fees.
+      parameters:
+        - name: company_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Payroll currency.
+        - name: generic_funding_method
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Generic funding method, for example `custodial_account`.
+        - name: amount
+          in: query
+          required: true
+          schema:
+            type: number
+          description: Payroll amount in the payroll currency.
+        - name: funding_currency
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Required for wallet and crypto funding methods.
+      responses:
+        "200":
+          description: Fee estimate returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fees:
+                    type: string
+                  total:
+                    type: string
+                  quote:
+                    type: object
+                    nullable: true
+                    properties:
+                      id:
+                        type: string
+                      base_currency:
+                        type: string
+                      quote_currency:
+                        type: string
+                      total_amount_in_funding_currency:
+                        type: string
+                      valid_to:
+                        type: string
+                        nullable: true
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /api/company/{company_id}/payrolls:
+    get:
+      operationId: listPayrolls
+      tags: [Company Payroll]
+      summary: List payrolls
+      description: |
+        List a company's payrolls, newest first. Filter by `external_id` to find a
+        payroll without storing the Bitwage `payroll_id`. Requires the
+        `payroll.read` permission group.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - name: external_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Payrolls returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PartnerPayroll"
+                  meta:
+                    $ref: "#/components/schemas/Pagination"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /api/company/{company_id}/payrolls/{payroll_id}:
+    get:
+      operationId: getPayroll
+      tags: [Company Payroll]
+      summary: Get payroll
+      description: |
+        Get a payroll and the status of each payment in it. Reports the same
+        `status` values and `payment` objects as the `company.payroll_status` and
+        `user.payment_status_update` webhooks, so you can use it to reconcile
+        missed deliveries. Requires the `payroll.read` permission group.
+
+        Errors: `payroll-not-found` (`404`) when the payroll doesn't exist or
+        belongs to another company.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - name: payroll_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payroll returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerPayroll"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/company/payroll/quote/refresh:
     post:
@@ -1201,6 +1530,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PayrollQuoteRefreshResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /api/vendor/payroll/quotes:
     post:
@@ -1518,7 +1853,132 @@ paths:
 # ──────────────────────────────────────────────
 # Webhooks
 # ──────────────────────────────────────────────
+# Each webhook is sent once. Bitwage does not retry. Return 200 within 20 seconds.
+# Headers: x-bitwage-signature (HMAC-SHA256) and x-bitwage-version: 1.0.
+# See the Webhooks guide for signature validation.
 webhooks:
+  companyPayrollStatus:
+    post:
+      tags: [Webhooks]
+      summary: Payroll status
+      description: |
+        Sent every time a payroll changes status, starting with `created`. It is not a one-time creation event.
+        Statuses can repeat or go back when an action is reversed. Use `GET /api/company/{company_id}/payrolls/{payroll_id}` to reconcile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: company.payroll_status
+                data:
+                  type: object
+                  properties:
+                    payroll_id:
+                      type: string
+                    company_id:
+                      type: string
+                    status:
+                      $ref: "#/components/schemas/PayrollStatus"
+                    invoice_ids:
+                      type: array
+                      nullable: true
+                      items:
+                        type: string
+                    payments:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          subpayroll_id:
+                            type: string
+                          user_id:
+                            type: string
+                            nullable: true
+                          volume_input_in_input_currency:
+                            type: number
+                            format: double
+                          invoice_id:
+                            type: string
+                            nullable: true
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  userPaymentStatusUpdate:
+    post:
+      tags: [Webhooks]
+      summary: Payment status update
+      description: |
+        Sent when a payment changes status. Two things trigger it, so you can receive the same `status` more than once for a payment:
+
+        - A payroll status change sends one event per payment in the payroll. `status` is the payroll status: `created`, `received`, `processing`, `fulfilled`, or `canceled`.
+        - A payment status change sends one event for that payment. `status` is `released`, `processing` (a release was reversed), or `fulfilled`.
+
+        Handle events idempotently, keyed on `subpayroll_id` and `status`. For a recipient you created, `payment.outputs` includes only the payouts to distributions you created for them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: user.payment_status_update
+                data:
+                  type: object
+                  properties:
+                    subpayroll_id:
+                      type: string
+                    claim_id:
+                      type: string
+                      nullable: true
+                      description: The claim (invoice) this payment pays. Null when the payment is not linked to a claim.
+                    user_id:
+                      type: string
+                      nullable: true
+                      description: The recipient.
+                    company_id:
+                      type: string
+                      description: The paying company.
+                    status:
+                      type: string
+                      enum: [created, received, processing, released, fulfilled, canceled]
+                    payment:
+                      $ref: "#/components/schemas/Payment"
+            example:
+              event: user.payment_status_update
+              data:
+                subpayroll_id: "9876543210"
+                claim_id: null
+                user_id: "1234567890"
+                company_id: "2693034771782348"
+                status: released
+                payment:
+                  subpayroll_id: "9876543210"
+                  receiver_user_id: "1234567890"
+                  received: true
+                  received_at: "2026-11-10T16:02:11+00:00"
+                  released: true
+                  released_at: "2026-11-10T18:30:45+00:00"
+                  fulfilled: false
+                  fulfilled_at: null
+                  outputs:
+                    - input_currency: USD
+                      output_currency: BTC
+                      volume_input_in_input_currency: 500.0
+                      volume_output_in_output_currency: 0.005
+                      fees: 2.5
+                      spread: 0.0
+                      tx_hash: null
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
   userKYCStatusUpdate:
     post:
       tags: [Webhooks]
@@ -1541,15 +2001,17 @@ webhooks:
                       type: string
                     kyc_verification_status:
                       type: string
+                      enum: [pending, approved, rejected, unapproved, neutral]
+                      description: "`neutral` means the case is in manual review."
       responses:
         "200":
           description: Return 200 to acknowledge receipt.
 
-  userPaymentStatusUpdate:
+  companyKYCStatusUpdate:
     post:
       tags: [Webhooks]
-      summary: User payment status update
-      description: Sent when a user's payment status changes. Merchant claim payments include `data.claim_id`; non-claim payments may set it to `null`.
+      summary: Company KYC status update
+      description: Sent when a company's verification status changes.
       requestBody:
         required: true
         content:
@@ -1559,34 +2021,60 @@ webhooks:
               properties:
                 event:
                   type: string
-                  example: user.payment_status_update
+                  example: company.kyc_status_update
                 data:
                   type: object
                   properties:
-                    subpayroll_id:
+                    company_id:
                       type: string
+                    kyc_verification_status:
+                      type: string
+                      enum: [pending, approved, rejected, unapproved, neutral]
+      responses:
+        "200":
+          description: Return 200 to acknowledge receipt.
+
+  claimDetection:
+    post:
+      tags: [Webhooks]
+      summary: Claim detection
+      description: Sent when funds for a merchant claim are detected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: claim.detection
+                data:
+                  type: object
+                  properties:
                     claim_id:
-                      type: string
-                      nullable: true
-                      description: Claim ID for merchant claim payments. May be null for non-claim payments.
-                    user_id:
                       type: string
                     company_id:
                       type: string
                     status:
                       type: string
-                      enum: [processing, released, fulfilled]
-                    payment:
-                      $ref: "#/components/schemas/Payment"
+                      example: detected
+                    currency:
+                      type: string
+                    amount:
+                      type: number
+                      format: double
       responses:
         "200":
           description: Return 200 to acknowledge receipt.
 
-  payrollCreated:
+  walletEvent:
     post:
       tags: [Webhooks]
-      summary: Payroll created
-      description: Sent when a company creates a payroll.
+      summary: Balance account event
+      description: |
+        Sent for balance account activity. `event` is one of `wallet.request`, `wallet.deposit`,
+        `wallet.lightning_deposit`, or `wallet.crypto_withdrawal`.
       requestBody:
         required: true
         content:
@@ -1596,35 +2084,48 @@ webhooks:
               properties:
                 event:
                   type: string
-                  example: payroll.created
-                data:
-                  type: object
-      responses:
-        "200":
-          description: Return 200 to acknowledge receipt.
-
-  userFundingAccountStatus:
-    post:
-      tags: [Webhooks]
-      summary: Funding account status update
-      description: Sent when a user's funding account status changes (e.g. approved, rejected).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                event:
-                  type: string
-                  example: user.funding_account_status
+                  enum: [wallet.request, wallet.deposit, wallet.lightning_deposit, wallet.crypto_withdrawal]
                 data:
                   type: object
                   properties:
-                    user_id:
-                      type: string
                     status:
                       type: string
+                      enum: [completed, failed, action_required]
+                    occurred_at:
+                      type: string
+                      format: date-time
+                    wallet_id:
+                      type: string
+                    company_id:
+                      type: string
+                      nullable: true
+                    user_id:
+                      type: string
+                      nullable: true
+                    external_id:
+                      type: string
+                      nullable: true
+                    error_code:
+                      type: string
+                      nullable: true
+                      description: Set when `status` is `failed`.
+                    error_message:
+                      type: string
+                      nullable: true
+                      description: Set when `status` is `failed`.
+                    transaction_id:
+                      type: string
+                      description: Deposits and withdrawals.
+                    currency:
+                      type: string
+                    amount:
+                      type: string
+                      description: Deposits and withdrawals, as a decimal string.
+                    rail:
+                      type: string
+                    tx_hash:
+                      type: string
+                      nullable: true
       responses:
         "200":
           description: Return 200 to acknowledge receipt.
@@ -1722,6 +2223,45 @@ components:
         type: integer
         minimum: 1
       description: Number of items per page.
+
+  responses:
+    BadRequest:
+      description: |
+        A business rule rejected the request. Check `code` and `data.retryable`.
+        Common codes include `idempotency-key-required`,
+        `idempotency-key-reused-with-different-payload`, and the
+        endpoint-specific codes listed in the [Errors guide](/guides/errors).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: |
+        Authentication failed, the partner lacks the required permission group
+        (`partner-permission-denied`), or the resource is not yours
+        (`partner-company-not-found`, `invalid-api-key`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: The resource does not exist for your account.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: The resource is in an incompatible state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationFailed:
+      description: The request failed validation. Field errors are under `schema`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorBody"
 
   schemas:
     # ── Authorization ──
@@ -2642,7 +3182,9 @@ components:
             $ref: "#/components/schemas/PayrollPaymentItem"
         funding_method:
           type: string
-          description: Funding method override. Uses company default if not provided.
+          description: |
+            How the payroll is funded, for example `wire`, `international_wire`, or `ach_credit`. Send it on every request.
+            If you omit it, Bitwage uses the company's default funding method, which partners can't set, and the request fails with a `422` when none exists.
         funding_currency:
           type: string
           description: Funding currency for crypto payments.
@@ -2697,6 +3239,62 @@ components:
           format: double
         quote:
           $ref: "#/components/schemas/PayrollQuote"
+
+    PayrollStatus:
+      type: string
+      enum: [created, received, processing, fulfilled, canceled]
+      description: |
+        Payroll status.
+
+        - `created`: the payroll exists and is waiting for funds.
+        - `received`: Bitwage received the funding.
+        - `processing`: the payroll is approved or released and payments are in flight.
+        - `fulfilled`: all payments are complete.
+        - `canceled`: the payroll was canceled or deleted.
+
+    PartnerPayroll:
+      type: object
+      properties:
+        payroll_id:
+          type: string
+        company_id:
+          type: string
+        external_id:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/PayrollStatus"
+        created:
+          type: string
+          format: date-time
+          nullable: true
+        datereceived:
+          type: string
+          format: date-time
+          nullable: true
+        dateapproved:
+          type: string
+          format: date-time
+          nullable: true
+        datereleased:
+          type: string
+          format: date-time
+          nullable: true
+        datefulfilled:
+          type: string
+          format: date-time
+          nullable: true
+        datecanceled:
+          type: string
+          format: date-time
+          nullable: true
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
 
     PayrollQuote:
       type: object
@@ -3082,16 +3680,19 @@ components:
         received_at:
           type: string
           format: date-time
+          nullable: true
         released:
           type: boolean
         released_at:
           type: string
           format: date-time
+          nullable: true
         fulfilled:
           type: boolean
         fulfilled_at:
           type: string
           format: date-time
+          nullable: true
         receiver_user_id:
           type: string
         outputs:
@@ -3143,10 +3744,50 @@ components:
 
     Error:
       type: object
+      description: |
+        Error body returned by most endpoints. Branch on `code`. See the
+        [Errors guide](/guides/errors) for the full list of codes.
+      required: [request_id, message]
       properties:
-        error:
+        request_id:
+          type: string
+          description: Include this when you contact support.
+        message:
+          type: string
+          description: English fallback text. Can change.
+        code:
+          type: string
+          description: Stable kebab-case error code. Omitted when there is none.
+          example: recipient-worker-email-already-exists
+        data:
+          type: object
+          description: Extra fields. Most `400` errors include `retryable`.
+          properties:
+            retryable:
+              type: boolean
+          additionalProperties: true
+
+    ValidationErrorBody:
+      type: object
+      required: [request_id, message, schema]
+      properties:
+        request_id:
           type: string
         message:
           type: string
+          description: The first error in `schema`.
         code:
+          type: string
+        schema:
+          type: object
+          description: Validation errors keyed by field name. Nested fields are nested.
+          additionalProperties: true
+          example:
+            payments: ["Total amount of payroll must be greater than 10"]
+
+    LegacyError:
+      type: object
+      description: Body returned by older `/api/user/*` endpoints with HTTP 400.
+      properties:
+        error:
           type: string

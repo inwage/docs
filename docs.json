@@ -25,6 +25,8 @@
             "group": "Concepts",
             "pages": [
               "guides/terminology",
+              "guides/partner-integration-lifecycle",
+              "guides/errors",
               "guides/private-label",
               "guides/webhooks",
               "guides/idempotency"

@@ -26,21 +26,30 @@ See the [Authentication guide](/guides/authentication) for setup instructions.
 
 ## Errors
 
-The API returns standard HTTP status codes and JSON error responses:
+The API returns standard HTTP status codes and a JSON error body:
 
 ```json
 {
-  "error": "error_code",
-  "message": "Human-readable error description"
+  "request_id": "5f1d1c2e-4f0a-4b53-9d0e-6d0f6f8f2a11",
+  "message": "Human-readable error description",
+  "code": "stable-error-code",
+  "data": { "retryable": false }
 }
 ```
+
+Branch on `code`, not `message`. Validation errors (`422`) add a `schema`
+object with the failing fields. A few older `/api/user/*` endpoints return
+`{"error": "..."}` instead.
 
 | Status | Description |
 |---|---|
 | `200` | Success |
-| `400` | Bad request — invalid parameters |
-| `401` | Unauthorized — invalid or missing credentials |
-| `403` | Forbidden — insufficient permissions |
+| `400` | A business rule rejected the request. Check `code` and `data.retryable`. |
+| `403` | Invalid credentials, missing permission, or a resource you don't own. Authentication failures are `403`, not `401`. |
 | `404` | Not found |
-| `422` | Validation error |
-| `500` | Internal server error |
+| `409` | The resource is in an incompatible state |
+| `422` | Validation error. See `schema`. |
+| `500` / `502` | Unexpected or downstream error. Retry with the same `Idempotency-Key`. |
+
+See the [Errors guide](/guides/errors) for every error code by endpoint and how
+to retry safely.
