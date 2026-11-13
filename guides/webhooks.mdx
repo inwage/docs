@@ -261,10 +261,12 @@ Because delivery is not guaranteed:
   re-read the payroll.
 - **Reconcile.** Use
   [`GET /api/company/{company_id}/payrolls/{payroll_id}`](/api-reference/company-payroll/get-payroll)
-  to fetch the current status of a payroll and every payment in it, for example
-  when a payroll hasn't changed status as long as you expect, or after your
-  endpoint was down. It returns the same `status` values and `payment` objects
-  as the webhooks.
+  to fetch the current status of a worker payroll and every payment in it, for
+  example when a payroll hasn't changed status as long as you expect, or after
+  your endpoint was down. `status` matches `company.payroll_status`. Each item
+  in `payments` matches `payment` on `user.payment_status_update`. The response
+  also includes `invoice_ids`. Vendor payrolls and balance-account withdrawals
+  are not returned.
 
 ## Validate webhook signatures
 

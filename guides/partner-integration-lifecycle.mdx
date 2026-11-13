@@ -199,8 +199,8 @@ You can follow a payroll by webhook, by polling, or both.
 
 | Method and path | Permission | Purpose |
 |---|---|---|
-| [`GET /api/company/{company_id}/payrolls`](/api-reference/company-payroll/list-payrolls) | `payroll.read` | List a company's payrolls. Filter with `external_id`. |
-| [`GET /api/company/{company_id}/payrolls/{payroll_id}`](/api-reference/company-payroll/get-payroll) | `payroll.read` | Read a payroll's status and every payment in it. |
+| [`GET /api/company/{company_id}/payrolls`](/api-reference/company-payroll/list-payrolls) | `payroll.read` | List a company's worker payrolls. Filter with `external_id`. Vendor payrolls and withdrawals are omitted. |
+| [`GET /api/company/{company_id}/payrolls/{payroll_id}`](/api-reference/company-payroll/get-payroll) | `payroll.read` | Read a worker payroll's status and every payment in it. |
 
 | Webhook | Meaning |
 |---|---|

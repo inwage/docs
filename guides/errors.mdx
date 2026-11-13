@@ -197,7 +197,7 @@ messages generically.
 
 | Endpoint | Code | Status | Meaning |
 |---|---|---|---|
-| `GET /api/company/{company_id}/payrolls/{payroll_id}` | `payroll-not-found` | `404` | The payroll doesn't exist or belongs to a different company. |
+| `GET /api/company/{company_id}/payrolls/{payroll_id}` | `payroll-not-found` | `404` | The payroll doesn't exist, belongs to a different company, or is a vendor payroll or withdrawal. |
 | `GET /api/company/{company_id}/payrolls` | none | `422` | `per_page` is above 100, or a parameter is invalid. |
 | Both | `partner-company-not-found` | `403` | You don't own `company_id`. |
 | Both | `partner-permission-denied` | `403` | Needs the `payroll.read` or `payroll.write` permission group. |

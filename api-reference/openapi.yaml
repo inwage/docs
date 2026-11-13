@@ -1432,8 +1432,9 @@ paths:
       tags: [Company Payroll]
       summary: List payrolls
       description: |
-        List a company's payrolls, newest first. Filter by `external_id` to find a
-        payroll without storing the Bitwage `payroll_id`. Requires the
+        List a company's worker payrolls, newest first. Filter by `external_id` to
+        find a payroll without storing the Bitwage `payroll_id`. Vendor payrolls
+        and balance-account withdrawals are not included. Requires the
         `payroll.read` permission group.
       parameters:
         - $ref: "#/components/parameters/CompanyIdPath"
@@ -1481,13 +1482,14 @@ paths:
       tags: [Company Payroll]
       summary: Get payroll
       description: |
-        Get a payroll and the status of each payment in it. Reports the same
-        `status` values and `payment` objects as the `company.payroll_status` and
-        `user.payment_status_update` webhooks, so you can use it to reconcile
-        missed deliveries. Requires the `payroll.read` permission group.
+        Get a worker payroll and the status of each payment in it. `status` is the
+        same value as `company.payroll_status`. Each item in `payments` is the
+        same object as `payment` on `user.payment_status_update`, so you can
+        reconcile a missed delivery. Vendor payrolls and balance-account
+        withdrawals are not included. Requires the `payroll.read` permission group.
 
-        Errors: `payroll-not-found` (`404`) when the payroll doesn't exist or
-        belongs to another company.
+        Errors: `payroll-not-found` (`404`) when the payroll doesn't exist,
+        belongs to another company, or is a vendor payroll or withdrawal.
       parameters:
         - $ref: "#/components/parameters/CompanyIdPath"
         - name: payroll_id
@@ -3291,8 +3293,17 @@ components:
           type: string
           format: date-time
           nullable: true
+        invoice_ids:
+          type: array
+          nullable: true
+          description: Claim IDs linked to the payroll, or null.
+          items:
+            type: string
         payments:
           type: array
+          description: |
+            Same object as `payment` on `user.payment_status_update`, not the
+            summary sent on `company.payroll_status`.
           items:
             $ref: "#/components/schemas/Payment"
 
