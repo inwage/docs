@@ -7,6 +7,12 @@ The Bitwage Partner API uses REST conventions with JSON request and response
 bodies. All endpoints are authenticated using either API key (Basic auth) or
 OAuth 2.0 bearer tokens.
 
+The reference is split by product. **Bitwage Business** endpoints are under
+`/api/company` and `/api/companies`: companies, recipients, distributions, and
+payroll. **Bitwage Individual** endpoints are under `/api/user`: users,
+documents, payers, distributions, and funding accounts. Use one family for a
+given person. See [Terminology](/guides/terminology#two-products-two-endpoint-families).
+
 ## Base URL
 
 ```

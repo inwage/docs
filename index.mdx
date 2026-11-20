@@ -3,14 +3,17 @@ title: Bitwage Partner API
 description: Integrate Bitwage payroll and payment processing into your application.
 ---
 
-The Bitwage Partner API lets you build payroll and payment solutions on top of
-Bitwage's infrastructure. With the API you can:
+The Bitwage Partner API covers two products. Each product has its own
+endpoints. Use one set or the other for a given person. A user created on one
+side is not a recipient on the other.
 
-- **Create and manage users** with full KYC verification
-- **Set up payment distributions** across fiat and cryptocurrency
-- **Create and manage companies** with KYB verification
-- **Run payroll** for workers and vendors
-- **Accept crypto payments** via merchant checkout
+| Product | Who it is for | Endpoints | Start here |
+|---|---|---|---|
+| **Bitwage Business** | A company pays its contractors, employees, and vendors. | `/api/company` and `/api/companies` | [Integration lifecycle](/guides/partner-integration-lifecycle) |
+| **Bitwage Individual** | A person receives payments from their own employers or clients, inside your UI. | `/api/user` | [Private label](/guides/private-label) |
+
+Bitwage Business also covers onboarding client companies and paying them
+through, and crypto checkout. Bitwage Individual is EUR payers only.
 
 <CardGroup cols={2}>
   <Card title="Quickstart" icon="rocket" href="/quickstart">

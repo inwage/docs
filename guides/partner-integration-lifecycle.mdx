@@ -1,10 +1,19 @@
 ---
 title: Integration lifecycle
-description: The endpoints you call, in order, to onboard companies, add recipients, and pay them.
+description: Bitwage Business. The company endpoints you call, in order, to onboard a company, add recipients, and pay them.
 ---
 
-This guide walks through a typical partner integration, step by step. It covers
-two tracks that share the same payment endpoints:
+This guide is the **Bitwage Business** product: a company pays its contractors,
+employees, and vendors. Every endpoint here is under `/api/company` or
+`/api/companies`.
+
+The `/api/user` endpoints are a different product, **Bitwage Individual**,
+documented in [Private label](/guides/private-label). Do not call them for a
+company recipient. A person you create with `POST /api/user/create` is not
+linked to a company, and a later `recipients/create` with the same email fails
+with `recipient-worker-email-already-exists`.
+
+The guide covers two tracks that share the same payment endpoints:
 
 - **Track A, your own company.** You pay your own contractors or employees.
 - **Track B, client companies.** Companies you onboard pay their own recipients.
@@ -49,18 +58,17 @@ A recipient is someone the company pays: a contractor, an employee, or a
 vendor. You collect their details and documents, then send them through the
 API. Bitwage does not email the recipient, and they never sign in.
 
-Do this in order. The `recipient_id` from the create response is the `user_id`
-you send to the user endpoints.
+Do this in order. Use the `recipient_id` from the create response in the
+company recipient routes below.
 
 | Method and path | Permission | Idempotent | Purpose |
 |---|---|---|---|
 | [`POST /api/company/{company_id}/recipients/create`](/api-reference/company-recipients/create-recipient) | `onboarding.write` | Yes | Create the person and link them to the paying company. |
-| [`POST /api/user/document/upload`](/api-reference/user-documents/upload-user-document) | `onboarding.write` | No | Upload an identity document, or set a tax ID. |
-| [`GET /api/user/document/list`](/api-reference/user-documents/list-user-documents) | `onboarding.read` | n/a | Confirm which documents are stored. |
-| [`POST /api/user/update`](/api-reference/users/update-user) | `onboarding.write` | No | Correct profile fields after creation. |
-| [`POST /api/user/kyc-initiate`](/api-reference/users/initiate-user-kyc) | `onboarding.write` | No | Start identity verification. |
-| [`GET /api/user/detail`](/api-reference/users/get-user-details) | `onboarding.read` | n/a | Read `kyc_verification_status`. |
-| [`GET /api/company/recipients`](/api-reference/company-recipients/list-company-recipients) | `onboarding.read` | n/a | List recipients of a company. |
+| [`POST /api/company/{company_id}/recipients/{recipient_id}/documents`](/api-reference/company-recipients/upload-recipient-document) | `onboarding.write` | Yes | Upload an identity document, or set a tax ID, for a worker. |
+| [`GET /api/company/{company_id}/recipients/{recipient_id}/documents`](/api-reference/company-recipients/list-recipient-documents) | `onboarding.read` | n/a | Confirm which documents are stored. |
+| [`GET /api/company/{company_id}/recipients/{recipient_id}/documents/types`](/api-reference/company-recipients/list-recipient-document-types) | `onboarding.read` | n/a | List the accepted document types. |
+| [`POST /api/company/{company_id}/recipients/{recipient_id}/kyc`](/api-reference/company-recipients/initiate-recipient-kyc) | `onboarding.write` | Yes | Start identity verification for a worker. |
+| [`GET /api/company/recipients`](/api-reference/company-recipients/list-company-recipients) | `onboarding.read` | n/a | List recipients of a company, with `status` and `kyc_verification_status`. |
 
 ### Create the recipient
 
@@ -89,19 +97,23 @@ returns `recipient-external-id-already-used`.
 }
 ```
 
-The response `recipient_id` is the user you upload documents for. Keep it.
-
-Create each person with this endpoint. `POST /api/user/create` makes a user
-who is not linked to a company, and a later `recipients/create` with the same
-email fails with `recipient-worker-email-already-exists`.
+The response `recipient_id` is the worker you upload documents for. Keep it.
+Profile fields are set here. There is no company-recipient update endpoint.
 
 For a vendor, send `recipient_type` `vendor` and a `vendor` object instead of
-`worker`. The returned `recipient_id` is a company ID.
+`worker`. The returned `recipient_id` is a company ID. A vendor verifies through
+the [company KYB routes](#1-onboard-a-client-company), with the vendor's
+`recipient_id` as `company_id`. The document and KYC routes below are for
+workers only and return `recipient-kyc-worker-only` for a vendor.
 
 ### Upload documents
 
-Call `POST /api/user/document/upload` once per document, with `user_id` set to
-the `recipient_id`.
+Call `POST /api/company/{company_id}/recipients/{recipient_id}/documents` once
+per document. The worker is identified by the path, so leave out `user_id`. If
+you send it, it must equal `recipient_id`, or the request fails with a `422`.
+Send an `Idempotency-Key` header. You can only upload for workers you created
+through `recipients/create`; any other worker returns
+`recipient-not-partner-managed`.
 
 | `doc_type` | What to send |
 |---|---|
@@ -110,22 +122,32 @@ the `recipient_id`.
 | `proof_of_address`, `selfie` | `category` `front`, `issuing_country`, and `base64_image`. |
 | `tax_id` | `tax_id` and `tax_id_type` (`passport`, `drivers_license`, or `national_id`). No image. |
 
-A failed image upload returns `user_update_advanced_data_failed`. These
-endpoints, along with `POST /api/user/update` and `POST /api/user/kyc-initiate`,
-use the [legacy error body](/guides/errors#legacy-error-body) and do not take
-an idempotency key. Check `GET /api/user/document/list` before you upload the
-same document again.
+A failed image upload returns `user_update_advanced_data_failed`. Call
+`GET /api/company/{company_id}/recipients/{recipient_id}/documents` to see which
+documents are stored, and `.../documents/types` for the accepted types.
 
 ### Start verification
 
-After the documents are uploaded, call `POST /api/user/kyc-initiate` with the
-`user_id`. Bitwage sends `user.kyc_status_update` when the status changes. You
-can also read `kyc_verification_status` from `GET /api/user/detail`. It is
-`pending`, `approved`, `rejected`, `unapproved`, or `neutral` (manual review).
+After the documents and tax ID are uploaded, call
+`POST /api/company/{company_id}/recipients/{recipient_id}/kyc` with an
+`Idempotency-Key` header and no body. Bitwage sends `user.kyc_status_update`
+when the status changes. You can also read `kyc_verification_status` from
+`GET /api/company/recipients`. It is `pending`, `approved`, `rejected`,
+`unapproved`, or `neutral` (manual review).
 
-Some paying companies require every recipient to be `approved` before a
-payroll is accepted. In that case payroll creation returns a `422` saying the
-recipients must have approved KYC.
+Starting verification can fail with `kyc-documents-missing`,
+`kyc-tax-id-missing`, `kyc-already-submitted`, or `kyc-provider-submit-failed`.
+See [errors](/guides/errors#recipients-contractors-employees-vendors).
+
+### Check whether a recipient is payable
+
+`status` on `GET /api/company/recipients` is `complete` when the recipient can
+be paid. It already accounts for the company's verification requirements:
+Bitwage may require recipients to be KYC `approved` for some companies, and
+you can't see why. Use `kyc_verification_status` to decide whether to collect
+documents, and `status` to decide whether to include the recipient in a
+payroll. A recipient that is locked is never `complete`. Payroll creation
+rejects a recipient who is not payable.
 
 ## 3. Add payment destinations
 
@@ -135,13 +157,14 @@ percentage (the allocation).
 
 | Method and path | Permission | Idempotent | Purpose |
 |---|---|---|---|
-| [`GET /api/user/distribution/fields`](/api-reference/user-distributions/get-distribution-fields) | `distributions.read` | n/a | Get the fields a bank account needs for the recipient's country and a currency. |
+| [`GET /api/company/{company_id}/recipients/{recipient_id}/distribution/fields`](/api-reference/company-recipients/get-recipient-distribution-fields) | `distributions.read` | n/a | Get the fields a bank account needs for the recipient's country and a currency. |
 | [`POST /api/company/{company_id}/recipients/{recipient_id}/distribution`](/api-reference/company-recipients/create-recipient-distribution) | `distributions.write` | Yes | Create a distribution. |
 | [`PATCH /api/company/{company_id}/recipients/{recipient_id}/distribution/allocations`](/api-reference/company-recipients/set-recipient-distribution-allocations) | `distributions.write` | No | Set the allocation of each distribution, up to three. |
 | [`DELETE /api/company/{company_id}/recipients/{recipient_id}/distribution`](/api-reference/company-recipients/delete-recipient-distribution) | `distributions.write` | No | Delete a distribution. Set its allocation to `0` first. |
 
-1. For a bank account, call `GET /api/user/distribution/fields` and send exactly
-   those fields in `distribution_data`.
+1. For a bank account, call
+   `GET /api/company/{company_id}/recipients/{recipient_id}/distribution/fields?currency=USD`
+   and send exactly those fields in `distribution_data`.
 2. Create the distribution. The response includes its current `allocation`.
 3. Call the allocations endpoint so the allocations of the recipient's
    distributions add up to `100`.

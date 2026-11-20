@@ -44,6 +44,8 @@ A missing key returns `400` with `idempotency-key-required` on these endpoints.
 | `POST /api/companies/{company_id}/kyb` | |
 | `POST /api/company/{company_id}/recipients/create` | |
 | `POST /api/company/{company_id}/recipients/{recipient_id}/distribution` | |
+| `POST /api/company/{company_id}/recipients/{recipient_id}/documents` | |
+| `POST /api/company/{company_id}/recipients/{recipient_id}/kyc` | |
 | `POST /api/company/payroll/create` | Required with API key authentication only. OAuth requests aren't checked. |
 | `POST /api/company/workers/pay` | Alias of `/api/company/payroll/create`. It shares the same idempotency records. |
 | `POST /api/vendor/payroll/quotes` | |
@@ -55,7 +57,8 @@ A missing key returns `400` with `idempotency-key-required` on these endpoints.
 | `POST /api/wallets/{account_id}/lightning-invoices` | Reusing a key returns `idempotency-key-reused` instead of the stored response. |
 
 Other write endpoints, such as `POST /api/company/workers/invite`,
-`POST /api/user/distribution`, and `PATCH` and `DELETE` endpoints, don't
+the Individual endpoint `POST /api/user/distribution`, and `PATCH` and `DELETE`
+endpoints, don't
 accept idempotency keys. Retrying them can fail or repeat the action. See
 [Retrying safely](/guides/errors#retrying-safely) for how to check state
 before you retry.

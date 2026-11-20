@@ -44,7 +44,7 @@ Some older endpoints return a simpler body without `request_id` or `code`:
 }
 ```
 
-These endpoints return it with HTTP `400`:
+These Bitwage Individual endpoints (`/api/user`) return it with HTTP `400`:
 
 - `POST /api/user/create`
 - `POST /api/user/update`
@@ -100,7 +100,7 @@ All return `403`.
 | `invalid-authorization-header-format` | Header isn't exactly two parts. | Use `Basic <API_KEY>` or `Bearer <TOKEN>`. |
 | `invalid-authorization-header-type` | Scheme is neither `Basic` nor `Bearer`. | Use `Basic` or `Bearer`. |
 | `invalid-api-key` | The API key is unknown, deleted, or belongs to a suspended or expired partner. **Also returned when a `company_id` or `user_id` in the request does not belong to your partner account.** | Check the key first, then check the ID is one you created or your own company. |
-| `permission-denied` | An OAuth token is used with a `company_id` other than the one the token was issued for. | Use the token for that company. |
+| `permission-denied` | An OAuth token is used with a `company_id`, in the body, the query string, or the URL path, other than the one the token was issued for. | Use the token for that company. |
 | `partner-permission-denied` | Your partner account lacks the permission group the route needs. `data.required_permission_group` names it, for example `payroll.write`. | Ask Bitwage to enable the group. |
 | `partner-not-found` | The OAuth app owner is not an active partner. | Contact support. |
 | `partner-company-not-found` | `company_id` in the URL is not your own company or a company you created. | Use a company ID from `POST /api/companies` or your own. |
@@ -109,7 +109,10 @@ All return `403`.
   With API key authentication, a `company_id` or `user_id` in the query string
   or JSON body that you do not own produces `invalid-api-key`, not a
   `404`. If a known-good key suddenly fails on one request, check the IDs.
-  IDs in the URL path return `partner-company-not-found` instead.
+  IDs in the URL path return `partner-company-not-found` instead. On
+  `/recipients/{recipient_id}` routes a `user_id` in the body is not checked
+  against your account; upload routes return a `422` if it differs from
+  `recipient_id`.
 </Note>
 
 ## Idempotency errors
@@ -151,7 +154,15 @@ it with the same key and it runs again.
 | `POST /api/company/{company_id}/recipients/create` | `recipient-vendor-already-exists` | `400` | A company with the same tax details, legal name, or email exists. `data.company_id` is the existing one. |
 | `POST /api/company/workers/invite` | `company-admin-not-found` | `400` | No active admin to send the invitation from. |
 | `POST /api/company/worker/invite/resend` | none | `422` | The invitation wasn't found, was already accepted, or was already sent three times. |
-| Recipient distribution routes | `recipient-not-found` | `400` | `recipient_id` is not a worker or vendor of this company. |
+| Recipient distribution and document routes | `recipient-not-found` | `400` | `recipient_id` is not a worker or vendor of this company. |
+| Recipient document and KYC routes | `recipient-kyc-worker-only` | `400` | `recipient_id` is a vendor. Verify a vendor with the company KYB routes. |
+| Recipient document and KYC routes | `recipient-not-partner-managed` | `403` | The worker was not created through `recipients/create` by your partner account. |
+| `POST .../recipients/{recipient_id}/documents` | `user_update_advanced_data_failed` | `400` | The document upload could not be saved. |
+| `POST .../recipients/{recipient_id}/kyc` | `kyc-documents-missing` | `400` | Upload at least one identity document first. |
+| `POST .../recipients/{recipient_id}/kyc` | `kyc-tax-id-missing` | `400` | Set the tax ID and its type with a `tax_id` document first. |
+| `POST .../recipients/{recipient_id}/kyc` | `kyc-already-submitted` | `409` | Verification was already started for this worker. Read `kyc_verification_status` instead. |
+| `POST .../recipients/{recipient_id}/kyc` | `kyc-provider-submit-failed` | `400` | The identity provider call failed. `data.retryable` is `true` when you can retry; if it is `false`, verification was partly started, so read `kyc_verification_status` and contact support if it stays `unapproved`. |
+| Recipient document and KYC routes | `partner-company-not-found` | `403` | You don't own `company_id`. |
 
 ### Distributions
 

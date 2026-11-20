@@ -3,9 +3,13 @@ info:
   title: Bitwage Partner API
   version: "2.0"
   description: |
-    The Bitwage Partner API allows you to integrate Bitwage payroll and payment
-    functionality into your own application. You can manage users, companies,
-    distributions, payroll, and more.
+    The Bitwage Partner API covers two products, and each has its own endpoints.
+
+    Bitwage Business (`/api/company`, `/api/companies`) is a company paying its
+    contractors, employees, and vendors.
+
+    Bitwage Individual (`/api/user`) is a person receiving payments from their
+    own employers or clients. Do not mix the two for the same person.
   contact:
     name: Development Team
     email: developers@bitwage.com
@@ -28,23 +32,23 @@ tags:
   - name: Authorization
     description: OAuth 2.0 authorization code flow endpoints.
   - name: Users
-    description: Create and manage user accounts.
+    description: Bitwage Individual. Create and manage user accounts.
   - name: User Documents
-    description: Upload and manage user KYC documents.
+    description: Bitwage Individual. Upload and manage user KYC documents.
   - name: User Payers
-    description: Manage external payers (employers/clients) for users.
+    description: Bitwage Individual. Manage the employers and clients who pay a user.
   - name: User Distributions
-    description: Manage payment distribution destinations for users.
+    description: Bitwage Individual. Manage where a user is paid.
   - name: User Funding
-    description: Manage funding (virtual bank) accounts for users.
+    description: Bitwage Individual. Manage the virtual bank accounts a user's payers fund.
   - name: Companies
-    description: Create and manage company accounts, UBO, KYC/KYB.
+    description: Bitwage Business. Create and manage companies, their owners, and KYB.
   - name: Company Workers
-    description: Invite and manage company workers.
+    description: Bitwage Business. Invite workers who sign in themselves.
   - name: Company Recipients
-    description: Manage company recipients (workers and vendors).
+    description: Bitwage Business. Create and manage recipients (workers and vendors) who never sign in.
   - name: Company Payroll
-    description: Create and manage payrolls.
+    description: Bitwage Business. Create and manage payrolls.
   - name: Merchant
     description: Crypto pay-in and BTC checkout endpoints.
   - name: Wallets
@@ -1184,6 +1188,59 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /api/company/{company_id}/recipients/{recipient_id}/distribution/fields:
+    get:
+      operationId: getRecipientDistributionFields
+      tags: [Company Recipients]
+      summary: Get recipient distribution fields
+      description: |
+        Get the fields a bank-account distribution needs for a worker recipient,
+        based on the worker's country and the currency. Send exactly these fields
+        in `distribution_data` when you create the distribution. Vendors are not
+        supported.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Target currency code (e.g. USD, EUR, BRL).
+      responses:
+        "200":
+          description: Required fields returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  currency:
+                    type: string
+                  country:
+                    type: string
+                    description: ISO 3166-1 alpha-3 country code.
+                  required_fields:
+                    type: array
+                    items:
+                      type: object
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `invalid_user_country`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: |
+            Codes: `partner-company-not-found`, `payer-cannot-manage-vendor-allocations`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /api/company/{company_id}/recipients/{recipient_id}/distribution:
     post:
       operationId: createRecipientDistribution
@@ -1300,6 +1357,182 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/ValidationFailed"
+
+  /api/company/{company_id}/recipients/{recipient_id}/documents:
+    get:
+      operationId: listRecipientDocuments
+      tags: [Company Recipients]
+      summary: List recipient documents
+      description: |
+        List the KYC documents stored for a worker you created through
+        `recipients/create`, including the tax ID entry if set. Vendors are not
+        supported; use the company KYB routes.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+      responses:
+        "200":
+          description: Document list returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserDocument"
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `recipient-kyc-worker-only`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: |
+            Codes: `partner-company-not-found`, `recipient-not-partner-managed`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: uploadRecipientDocument
+      tags: [Company Recipients]
+      summary: Upload recipient document
+      description: |
+        Upload a KYC document, or set the tax ID, for a worker you created
+        through `recipients/create`. The worker is identified by the path; leave
+        out `user_id`. If you send it, it must equal `recipient_id`, otherwise the
+        request fails with a `422`. The request shape depends on `doc_type`:
+        - For `tax_id`: provide `tax_id` and `tax_id_type`.
+        - For image documents: provide `category`, `issuing_country`, and `base64_image`.
+
+        Requires an `Idempotency-Key` header.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipientDocumentUploadRequest"
+      responses:
+        "200":
+          description: Document stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  recipient_id:
+                    type: string
+                  doc_type:
+                    type: string
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `recipient-kyc-worker-only`,
+            `user_update_advanced_data_failed`, `idempotency-key-required`,
+            `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: |
+            Codes: `partner-company-not-found`, `recipient-not-partner-managed`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /api/company/{company_id}/recipients/{recipient_id}/documents/types:
+    get:
+      operationId: listRecipientDocumentTypes
+      tags: [Company Recipients]
+      summary: List recipient document types
+      description: List the document types accepted for a worker you created through `recipients/create`.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+      responses:
+        "200":
+          description: Accepted document types returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequiredDocTypesResponse"
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `recipient-kyc-worker-only`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: |
+            Codes: `partner-company-not-found`, `recipient-not-partner-managed`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/company/{company_id}/recipients/{recipient_id}/kyc:
+    post:
+      operationId: initiateRecipientKyc
+      tags: [Company Recipients]
+      summary: Initiate recipient KYC
+      description: |
+        Submit the uploaded documents and tax ID of a worker you created through
+        `recipients/create` for identity verification. Send no body. Requires an
+        `Idempotency-Key` header. Bitwage sends `user.kyc_status_update` when the
+        status changes.
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdPath"
+        - $ref: "#/components/parameters/RecipientIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyRequired"
+      responses:
+        "200":
+          description: Verification submitted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recipient_id:
+                    type: string
+                  kyc_verification_status:
+                    type: string
+        "400":
+          description: |
+            Codes: `recipient-not-found`, `recipient-kyc-worker-only`,
+            `kyc-documents-missing`, `kyc-tax-id-missing`,
+            `kyc-provider-submit-failed` (`data.retryable` says whether to retry),
+            `idempotency-key-required`, `idempotency-key-reused-with-different-payload`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: |
+            Codes: `partner-company-not-found`, `recipient-not-partner-managed`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: |
+            Code: `kyc-already-submitted`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   # ──────────────────────────────────────────────
   # Company Payroll
@@ -2444,6 +2677,32 @@ components:
           type: string
           description: Required when `doc_type` is `tax_id`.
 
+    RecipientDocumentUploadRequest:
+      type: object
+      required: [doc_type]
+      properties:
+        doc_type:
+          type: string
+          description: |
+            Document type. Use `tax_id` for tax ID submission, or one of the
+            image document types for identity verification.
+        category:
+          type: string
+          enum: [front, back]
+          description: Required for image documents. Passport and proof-of-address require `front`.
+        issuing_country:
+          type: string
+          description: 2-character ISO country code. Required for image documents.
+        base64_image:
+          type: string
+          description: Base64-encoded image. Required for image documents.
+        tax_id:
+          type: string
+          description: Required when `doc_type` is `tax_id`.
+        tax_id_type:
+          type: string
+          description: Required when `doc_type` is `tax_id`.
+
     UserDocument:
       type: object
       properties:
@@ -3060,6 +3319,16 @@ components:
           type: string
         status:
           type: string
+          description: |
+            Whether the recipient can be paid. `complete` means payable; it
+            accounts for the company's verification requirements and for locked
+            workers. Other values mean the recipient still needs something.
+        kyc_verification_status:
+          type: string
+          enum: [unapproved, pending, approved, rejected, neutral]
+          description: |
+            Identity verification status: KYC for a worker, KYB for a vendor.
+            Use it to decide whether to collect documents.
         country:
           type: string
         external_id:

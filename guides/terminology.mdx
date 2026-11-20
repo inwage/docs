@@ -3,6 +3,22 @@ title: Terminology
 description: Key concepts and account types in the Bitwage platform.
 ---
 
+## Two products, two endpoint families
+
+Pick the product first. The path prefix tells you which one an endpoint
+belongs to.
+
+| Product | Path prefix | What you create |
+|---|---|---|
+| Bitwage Business | `/api/company`, `/api/companies` | A company, then its recipients. Recipients never sign in. |
+| Bitwage Individual | `/api/user` | A user who receives payments from payers you register for them. |
+
+Do not cross them. `POST /api/user/create` makes an Individual user who is not
+linked to a company. Creating a company recipient later with the same email
+fails. Company recipient routes do not accept an Individual user, and the
+`/api/user` document, KYC, payer, and distribution routes do not apply to a
+company recipient.
+
 ## Account types
 
 ### Bitwage Business

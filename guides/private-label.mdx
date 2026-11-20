@@ -3,9 +3,15 @@ title: Private label
 description: Integrate the Bitwage Individual product into your application without the Bitwage UI.
 ---
 
-The Private Label implementation allows you to embed Bitwage's "Individual"
-product into your application. Your users interact entirely with your UI while
-Bitwage handles payment processing behind the scenes.
+This guide is the **Bitwage Individual** product. You embed it in your
+application so a person receives payments from employers or clients, and they
+interact only with your UI. Every endpoint in this guide is under `/api/user`.
+
+Company payroll is a different product. Its endpoints are under `/api/company`
+and `/api/companies`, and they are documented in the
+[integration lifecycle](/guides/partner-integration-lifecycle). Do not create
+an Individual user and then add them with `recipients/create`. The email is
+already taken, and the company recipient routes will not accept them.
 
 ## How it works
 
